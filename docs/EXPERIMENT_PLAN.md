@@ -54,3 +54,7 @@ coordinates and graph edges.
 Public notebook claims, local CV, Kaggle runtime completion, and leaderboard
 scores are recorded separately. A notebook that merely runs is not reported as
 a validated leaderboard improvement.
+
+Public discussion observations and their required local checks are tracked in
+`docs/DISCUSSION_NOTES.md`. They remain hypotheses until reproduced on the
+downloaded training data.

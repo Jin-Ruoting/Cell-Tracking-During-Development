@@ -166,3 +166,22 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e001_kernel_output_20260723.log`.
 - Status: kernel version 3 running.
 - Source edits on server: none.
+
+## S009 - Discussion Review During Asynchronous Scoring
+
+- Time: 2026-07-23 17:25 CST.
+- E000 submission `54923913` remained `PENDING`; no duplicate submission was
+  created.
+- Public participant reports describe scoring durations of roughly four to seven
+  hours and raise a graph-connectivity explanation for some timeouts. These are
+  operational observations, not official guarantees.
+- A high-vote discussion reports 947 exact frozen transitions across 114 of 128
+  `6bba` clips and none across 71 `44b6` clips. This remains unverified locally
+  until the competition dataset is extracted.
+- A temporal-affinity discussion motivates later motion-field and consensus
+  pseudo-label experiments, but the lower-cost detector and freeze-aware controls
+  remain ahead of it in the experiment order.
+- Metric-exploit suggestions in the same discussions were explicitly excluded.
+- Detailed source links and promotion gates:
+  `docs/DISCUSSION_NOTES.md`.
+- Source edits on server: none.

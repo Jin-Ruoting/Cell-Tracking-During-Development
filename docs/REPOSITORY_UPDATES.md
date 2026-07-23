@@ -84,3 +84,14 @@
 - Replaced ad hoc foreground status checks with an event-driven watcher that
   downloads terminal output to server `/tmp`.
 - Server source changes: none.
+
+## U009 - Convert Discussion Evidence into Experiment Gates
+
+- Time: 2026-07-23 17:25 CST.
+- Added source-linked notes for scoring latency, graph connectivity, frozen
+  frames, global jumps, temporal affinity, and pseudo-label proposals.
+- Marked all participant claims as unverified until reproduced locally.
+- Added concrete E002-E004 validation gates and explicitly excluded
+  patched-metric exploit paths.
+- Recorded the decision not to duplicate the still-pending E000 submission.
+- Server source changes: none; synchronization requires `git pull --ff-only`.

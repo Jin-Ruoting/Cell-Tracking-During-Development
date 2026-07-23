@@ -29,6 +29,7 @@ See [NOTICE.md](NOTICE.md) before reusing the notebook.
 - `scripts/`: local preparation and validation utilities.
 - `docs/EXPERIMENT_PLAN.md`: staged path from baseline reproduction to stronger models.
 - `docs/EXPERIMENT_LOG.md`: server runs and observed results.
+- `docs/DISCUSSION_NOTES.md`: discussion claims translated into validation gates.
 - `docs/LEADERBOARD.md`: leaderboard snapshots and our submissions.
 - `docs/REPOSITORY_UPDATES.md`: auditable repository changes.
 
