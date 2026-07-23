@@ -21,6 +21,11 @@ E000's fixed-8 score was `0.000290154` below the public control reference. The
 source snapshot is SHA256-pinned, outputs are stripped, and the transformation is
 reproducible through `scripts/prepare_public_baseline.py`.
 
+The repository also reproduces the discussion-reported frozen frames directly
+from image content. A clean zero-motion relinking sweep was evaluated on
+training holdouts disjoint from the visible test IDs; it produced no gain and
+was rejected rather than submitted.
+
 See [NOTICE.md](NOTICE.md) before reusing the notebook.
 
 ## Repository Layout

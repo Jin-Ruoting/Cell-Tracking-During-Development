@@ -225,3 +225,17 @@
   disjoint tuning holdouts, audits every candidate graph, and writes all
   generated artifacts under ignored server `logs/`.
 - Server source changes: none; execution requires a later `git pull --ff-only`.
+
+## U022 - Record E003 Reproduction and Rejection
+
+- Time: 2026-07-23 21:25 CST.
+- Ran the versioned E003 harness from clean server commit `8106952`; all 17
+  tests passed and the runner exited `0`.
+- Reproduced E001's all-eight edge counts and adjusted score exactly with the
+  independent evaluator.
+- Evaluated seven zero-motion gates on disjoint training holdouts. Five gates
+  reduced the score and the two broadest gates tied E001.
+- All seven candidate graphs passed independent validation.
+- Rejected E003 without creating a Kaggle submission and kept every generated
+  CSV, JSON report, completion marker, and raw log outside Git.
+- Server source changes: none.

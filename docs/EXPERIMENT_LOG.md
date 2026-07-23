@@ -405,7 +405,10 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 
 ## S018 - E003 Offline Relinking Harness Preparation
 
-- Time: 2026-07-23 20:06 CST.
+- Preparation time: 2026-07-23 20:06 CST.
+- Server execution: 2026-07-23 21:15-21:20 CST.
+- Server commit:
+  `8106952736afec8aef18d993e4858b806fa0dc2c`.
 - Added a zero-motion linear-assignment post-processor that replaces only edges
   on transitions listed by a content-derived frozen-frame report.
 - Added an independent patched-spec edge evaluator that reads single-chunk Zarr
@@ -425,6 +428,32 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   same fragile command, a versioned `scripts/run_e003_ablation.sh` runner now
   owns the baseline assertion, seven distance gates, graph audits, and summary
   generation.
-- Status: locally validated; server baseline reproduction and distance sweep
-  pending.
+- The versioned runner passed all 17 server tests.
+- The independent evaluator exactly reproduced E001's all-eight edge counts
+  `3852 / 287 / 251` and adjusted edge Jaccard
+  `0.8789316334556233`. The recorded notebook value differs only by floating
+  representation at the final decimal place.
+- On the four disjoint tuning holdouts, unchanged E001 scored
+  `0.8680921294395563` with edge counts `1834 / 135 / 142`.
+- Zero-motion LAP results on those holdouts:
+
+| Gate (um) | Adjusted edge Jaccard | Delta vs E001 |
+|---:|---:|---:|
+| 0.5 | 0.8352931691 | -0.0327989603 |
+| 1.0 | 0.8454585763 | -0.0226335532 |
+| 1.5 | 0.8522175697 | -0.0158745597 |
+| 2.0 | 0.8633319821 | -0.0047601474 |
+| 3.0 | 0.8676238368 | -0.0004682926 |
+| 4.0 | 0.8680921294 | 0.0000000000 |
+| 6.0 | 0.8680921294 | 0.0000000000 |
+
+- Every candidate passed the independent graph audit. Smaller gates lost true
+  edges; the 4 and 6 micrometre gates reproduced baseline edge counts exactly.
+- Decision: reject this E003 zero-motion post-processing branch. It provides no
+  disjoint-holdout gain and will not be submitted.
+- Raw server log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s018_e003_ablation_20260723.log`.
+- Sweep summary:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s018_e003_sweep_summary_20260723.json`.
+- Status: completed with runner exit code `0`; E003 rejected.
 - Source edits on server: none.

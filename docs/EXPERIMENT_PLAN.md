@@ -43,7 +43,7 @@ coordinates and graph edges.
 |---|---|---|---|
 | E001 | Disable five-node rescue | Run the public revision's A/B control | Same detector and ILP settings |
 | E002 | Tune detection threshold | Detection was the strongest public lever | Both embryos, fixed scorer |
-| E003 | Freeze-aware relinking | Local audit confirmed 947 repeated transitions in `6bba` | Detect duplicates from images, no schedule memorization |
+| E003 | Freeze-aware relinking | Zero-motion LAP sweep rejected: no disjoint-holdout gain | Detect duplicates from images, no schedule memorization |
 | E004 | Motion/intensity LAP cost | Reduce dense-region track swaps | Component and edge FP controls |
 | E005 | Conservative division calibration | Recover the weighted division term | Patched scorer only |
 | E006 | Cross-embryo pseudo-label ensemble | Improve sparse supervision | No hidden-test probing |

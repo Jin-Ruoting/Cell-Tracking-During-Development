@@ -71,6 +71,12 @@ E003 promotion gates:
 6. Reject the change if gains are confined to one embryo, edge false positives
    rise materially, or graph validation fails.
 
+Result: the evaluator reproduced E001 exactly. Seven zero-motion LAP gates from
+0.5 to 6.0 micrometres were then tested on four training holdouts whose IDs are
+absent from the visible test directory. Gates through 3.0 micrometres reduced the
+adjusted edge score, while 4.0 and 6.0 merely tied E001. All graphs were valid.
+This E003 branch is rejected and is not a submission candidate.
+
 ## Detection and Temporal Affinity
 
 Source:
