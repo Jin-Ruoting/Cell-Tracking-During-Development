@@ -331,3 +331,32 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 - Independent audit JSON:
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s013_e001_submission_audit_20260723.json`.
 - Source edits on server: none.
+
+## S015 - Public Support Pack Download
+
+- Time: 2026-07-23 19:02 CST.
+- Dataset:
+  `pilkwang/biohub-tracking-support-pack-50ep-v1`, license `CC0-1.0`.
+- Downloaded and extracted under ignored server `Dataset/support-pack/`.
+- Size: 340 MiB across 87 files.
+- The manifest declares primary UNet-transformer weight SHA256
+  `12f6881ee3620a831697ca098ff8f48e687a24225f4e048b538deec3562fe771`.
+- The pack includes public source, primary weights, and Kaggle Python 3.12
+  offline wheels. The server `Kaggle` environment is Python 3.11, so compiled
+  wheels are not installed blindly.
+- Raw server log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s015_support_pack_download_20260723.log`.
+- Source edits on server: none.
+
+## S016 - Frozen-Transition Edge Analysis Preparation
+
+- Time: 2026-07-23 19:04 CST.
+- The fixed-eight CV set contains 31 locally verified frozen transitions across
+  all four `6bba` clips and none across the four `44b6` clips.
+- Added a dependency-free analysis that compares predicted physical edge
+  displacement on frozen versus ordinary transitions and measures exact
+  detection-position overlap between identical frames.
+- Added three synthetic tests covering zero-motion frozen edges, cross-links
+  despite identical detections, and clips without frozen transitions.
+- Status: locally implemented; validation and fixed-eight execution pending.
+- Source edits on server: none.

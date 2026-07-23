@@ -176,3 +176,14 @@
 - Kept the archive, extracted data, JSON audit, markers, and raw logs outside
   Git.
 - Server source changes: none.
+
+## U018 - Add Frozen-Transition Edge Analysis
+
+- Time: 2026-07-23 19:04 CST.
+- Recorded the ignored CC0 public support-pack download without adding its
+  weights, wheels, or source copy to Git.
+- Added a standard-library analysis for fixed-eight detection overlap and edge
+  displacement on the 31 verified frozen transitions.
+- Added three focused synthetic tests and linked the analysis to E003's promotion
+  gates.
+- Server source changes: none; execution requires a later `git pull --ff-only`.

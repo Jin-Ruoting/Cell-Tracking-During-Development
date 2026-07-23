@@ -54,8 +54,10 @@ E003 promotion gates:
 
 1. Detect frozen transitions from image content at inference time; never encode a
    memorized frame schedule.
-2. Compare unchanged E001 tracking against freeze-aware linking on both embryos.
-3. Reject the change if gains are confined to one embryo or edge false positives
+2. Use `scripts/analyze_frozen_edges.py` to measure detection overlap and edge
+   displacement on frozen versus ordinary fixed-eight transitions.
+3. Compare unchanged E001 tracking against freeze-aware linking on both embryos.
+4. Reject the change if gains are confined to one embryo or edge false positives
    rise materially.
 
 ## Detection and Temporal Affinity
