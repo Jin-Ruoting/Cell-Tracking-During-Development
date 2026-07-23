@@ -22,3 +22,9 @@ the current maximum qualifying rank.
 | Experiment | Submission ID | Public score | Rank / teams | Percentile | Status |
 |---|---:|---:|---:|---:|---|
 | E000 | 54923913 | pending | pending | pending | Hidden-test rerun pending |
+
+## Held Candidates
+
+| Experiment | Kaggle version | Fixed-8 score | Decision |
+|---|---:|---:|---|
+| E001 no-rescue control | 3 | `0.8789316335` | Hold; only `+0.0000020421` versus E000 while E000 scoring is pending |

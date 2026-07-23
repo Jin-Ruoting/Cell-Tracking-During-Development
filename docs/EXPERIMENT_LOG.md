@@ -268,3 +268,41 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s012_e000_submission_audit_20260723.json`.
 - Status: locally and server validated; E000 artifact passed independent audit.
 - Source edits on server: none.
+
+## S013 - E001 Terminal Validation
+
+- Kernel terminal time: 2026-07-23 17:55 CST.
+- Validation time: 2026-07-23 17:59 CST.
+- Kaggle kernel version 3 status: `COMPLETE`.
+- Output download directory: server `/tmp/biohub_e001_v3`.
+- Submission rows: 236,095, comprising 120,186 nodes and 115,909 edges.
+- Submission SHA256:
+  `d85760b872c125ebf993b80d579c7065c3c36d8b980a273303b9ba01c3539487`.
+- Fixed-eight official-spec lite CV:
+  - score / adjusted edge Jaccard: `0.8789316334556234`;
+  - edge TP / FP / FN: `3852 / 287 / 251`;
+  - node recall: `0.9804152902312412`;
+  - division Jaccard: `0.0`;
+  - delta versus E000: `+0.0000020420913934`;
+  - delta versus notebook-124 reference: `-0.0002881116112545268`;
+  - the hidden-test submission hash was preserved exactly through CV.
+- Independent graph audit:
+  - zero violations;
+  - maximum indegree `1`, maximum outdegree `2`;
+  - 4,277 connected components;
+  - largest component 215 nodes.
+- Relative to E000, aggregate graph counts changed only in
+  `44b6_0b24845f`: minus 60 nodes, 48 edges, and 12 five-node components.
+  The other three hidden-test graph summaries were unchanged.
+- Decision: hold E001 rather than submit while E000 remains `PENDING`. The local
+  gain is negligible and participant reports indicate each leaderboard scoring
+  job may consume several hours.
+- Raw kernel-status log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e001_kernel_status_20260723.log`.
+- Raw output-download log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e001_kernel_output_20260723.log`.
+- Raw validation log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s013_e001_validation_20260723.log`.
+- Independent audit JSON:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s013_e001_submission_audit_20260723.json`.
+- Source edits on server: none.

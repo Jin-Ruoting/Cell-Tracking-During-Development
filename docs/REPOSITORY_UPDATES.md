@@ -153,3 +153,14 @@
   zero independent schema or graph violations.
 - Kept the detailed JSON report and raw output in ignored server `logs/`.
 - Server source changes: none.
+
+## U016 - Record E001 Completion and Hold Decision
+
+- Time: 2026-07-23 17:59 CST.
+- Recorded Kaggle kernel version 3 `COMPLETE`, exact output hash, fixed-eight
+  metric, graph counts, and zero independent audit violations.
+- Quantified E001's negligible `+0.0000020421` fixed-eight delta over E000.
+- Added E001 to the held-candidate record rather than creating a duplicate
+  leaderboard scoring job while E000 is pending.
+- Kept all downloaded outputs and raw validation reports outside Git.
+- Server source changes: none.
