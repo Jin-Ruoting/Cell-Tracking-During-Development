@@ -43,6 +43,12 @@ comparison. Across all 19,701 adjacent transitions, the audit found:
 - `6bba`: 128 clips, 114 affected clips, 947 duplicate transitions;
 - total: 199 clips, 114 affected clips, 947 duplicate transitions.
 
+The same content-driven audit compared all 396 adjacent transitions in the four
+visible test arrays. It found no duplicate transition in either `44b6` clip and
+20 duplicates across the two `6bba` clips. The visible test IDs also occur under
+`train/`; their GEFF labels are explicitly excluded from parameter selection and
+must never be copied into a submission.
+
 The committed `scripts/audit_frozen_frames.py` performs an exact encoded-chunk
 comparison without loading or decompressing the full 3D volumes. It validates the
 dataset's Zarr v3 chunk layout before comparing every consecutive transition.
@@ -56,9 +62,14 @@ E003 promotion gates:
    memorized frame schedule.
 2. Use `scripts/analyze_frozen_edges.py` to measure detection overlap and edge
    displacement on frozen versus ordinary fixed-eight transitions.
-3. Compare unchanged E001 tracking against freeze-aware linking on both embryos.
-4. Reject the change if gains are confined to one embryo or edge false positives
-   rise materially.
+3. Tune only on training holdouts whose IDs are absent from the visible test
+   directory.
+4. Use `scripts/relink_frozen_transitions.py` for a zero-motion LAP ablation and
+   `scripts/evaluate_edge_predictions.py` for the patched-spec edge term.
+5. First reproduce E001's fixed-eight edge counts exactly, then compare unchanged
+   E001 tracking against freeze-aware linking on disjoint holdouts.
+6. Reject the change if gains are confined to one embryo, edge false positives
+   rise materially, or graph validation fails.
 
 ## Detection and Temporal Affinity
 

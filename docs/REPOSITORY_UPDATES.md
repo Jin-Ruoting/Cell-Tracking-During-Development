@@ -187,3 +187,29 @@
 - Added three focused synthetic tests and linked the analysis to E003's promotion
   gates.
 - Server source changes: none; execution requires a later `git pull --ff-only`.
+
+## U019 - Record Frozen-Edge and Visible-Test Audits
+
+- Time: 2026-07-23 19:51 CST.
+- Fast-forwarded the server to `d70d9eb` before both runs.
+- Passed the focused server tests and recorded the 31-transition fixed-eight
+  edge analysis.
+- Recorded 20 content-detected frozen transitions across the two visible
+  `6bba` test arrays and none in the two visible `44b6` arrays.
+- Added an explicit leakage guard because all four visible test IDs also occur
+  under `train/`: their GEFF labels cannot be used for tuning or submission
+  construction.
+- Kept JSON reports, completion markers, and raw logs outside Git.
+- Server source changes: none.
+
+## U020 - Add Clean E003 Offline Ablation Harness
+
+- Time: 2026-07-23 20:06 CST.
+- Added content-report-driven zero-motion LAP relinking with explicit distance
+  gates and per-dataset change statistics.
+- Added a standalone patched-spec edge evaluator for submission CSV and GEFF
+  labels without installing incompatible support-pack wheels.
+- Added six synthetic tests; seventeen combined repository tests pass locally.
+- Documented the one-time evaluator reproduction check and the disjoint-holdout
+  tuning boundary.
+- Server source changes: none; execution requires a later `git pull --ff-only`.

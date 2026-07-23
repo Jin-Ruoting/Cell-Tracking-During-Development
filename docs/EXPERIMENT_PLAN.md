@@ -58,3 +58,9 @@ a validated leaderboard improvement.
 Public discussion observations and their required local checks are tracked in
 `docs/DISCUSSION_NOTES.md`. They remain hypotheses until reproduced on the
 downloaded training data.
+
+The four visible test IDs also exist in the training directory with GEFF labels.
+Those labels are not used for tuning, candidate selection, or direct graph
+construction. Experiments that touch visible-test images may use only
+label-independent content checks; promotion evidence must come from separate
+training holdouts.

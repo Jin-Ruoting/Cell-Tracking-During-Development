@@ -348,9 +348,12 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s015_support_pack_download_20260723.log`.
 - Source edits on server: none.
 
-## S016 - Frozen-Transition Edge Analysis Preparation
+## S016 - Frozen-Transition Edge Analysis
 
-- Time: 2026-07-23 19:04 CST.
+- Preparation time: 2026-07-23 19:04 CST.
+- Server execution time: 2026-07-23 19:26 CST.
+- Server commit:
+  `d70d9ebe579106e9a65f85ded2556d216aaf341b`.
 - The fixed-eight CV set contains 31 locally verified frozen transitions across
   all four `6bba` clips and none across the four `44b6` clips.
 - Added a dependency-free analysis that compares predicted physical edge
@@ -358,5 +361,65 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   detection-position overlap between identical frames.
 - Added three synthetic tests covering zero-motion frozen edges, cross-links
   despite identical detections, and clips without frozen transitions.
-- Status: locally implemented; validation and fixed-eight execution pending.
+- All three focused tests passed locally and in Conda environment `Kaggle`.
+- Across the 31 frozen transitions:
+  - 8,421 predicted edges had mean displacement `0.916018` micrometres and
+    median displacement `0.8125` micrometres;
+  - 1,664 edges had exact zero displacement, a fraction of `0.197601`;
+  - exact coordinate overlap was 1,664 of 8,460 source nodes (`0.196690`) and
+    1,664 of 8,431 target nodes (`0.197367`).
+- As a same-embryo control, ordinary `6bba` transitions had mean displacement
+  `1.635166` micrometres and median displacement `1.675012` micrometres.
+- Interpretation: the current graph already has lower motion on frozen
+  transitions, but exact zero-motion correspondence covers only about one fifth
+  of detections. E003 therefore remains a measured relinking experiment rather
+  than an automatic promotion.
+- Raw server log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s016_frozen_edge_analysis_20260723.log`.
+- JSON report:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s016_frozen_edge_analysis_20260723.json`.
+- Status: completed; no candidate submission produced.
+- Source edits on server: none.
+
+## S017 - Visible-Test Frozen-Frame Audit
+
+- Time: 2026-07-23 19:48 CST.
+- Server commit:
+  `d70d9ebe579106e9a65f85ded2556d216aaf341b`.
+- All four frozen-audit tests passed in Conda environment `Kaggle`.
+- Compared all 396 adjacent transitions across the four visible test arrays.
+- `44b6`: two clips, zero duplicate transitions.
+- `6bba`: two clips, both affected, 20 duplicate transitions in total.
+- The 20 pairs are detected from image bytes at runtime, not from a hard-coded
+  schedule.
+- The four visible test IDs also occur under `train/` with GEFF labels. Those
+  paired labels are excluded from E003 parameter selection and are never copied
+  into a submission. E003 calibration must use separate training holdouts.
+- Raw server log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s017_test_frozen_frame_audit_20260723.log`.
+- JSON report:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s017_test_frozen_frame_audit_20260723.json`.
+- Status: completed; confirms that content-driven freeze handling has a visible
+  test execution path without legitimizing label reuse.
+- Source edits on server: none.
+
+## S018 - E003 Offline Relinking Harness Preparation
+
+- Time: 2026-07-23 20:06 CST.
+- Added a zero-motion linear-assignment post-processor that replaces only edges
+  on transitions listed by a content-derived frozen-frame report.
+- Added an independent patched-spec edge evaluator that reads single-chunk Zarr
+  v3 GEFF arrays through the system `zstd` decoder. It does not require the
+  Python 3.12-only compiled wheels in the public support pack.
+- Candidate selection is restricted to fixed-eight training holdouts whose IDs
+  are absent from the visible test directory:
+  `44b6_341df25f`, `44b6_e57ff5c6`, `6bba_969618f6`, and
+  `6bba_fc83837d`.
+- The all-eight E001 run may be used once only to verify that the evaluator
+  reproduces the recorded `3852 / 287 / 251` edge counts; it is not a tuning
+  target.
+- Added six focused tests for relinking, assignment gates, edge counting, and
+  the node-count adjustment formula. Seventeen combined local tests passed.
+- Status: locally validated; server baseline reproduction and distance sweep
+  pending.
 - Source edits on server: none.
