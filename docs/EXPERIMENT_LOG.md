@@ -197,6 +197,13 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   summaries, and JSON output outside Git.
 - Four synthetic-layout unit tests cover exact duplicates, multi-chunk frames,
   invalid time chunks, split discovery, and embryo summaries.
-- Status: locally implemented; full-data execution waits for download and
-  extraction completion.
+- Server validation time: 2026-07-23 17:33 CST.
+- Server validation commit:
+  `3220e4039c9a4e0818dc2df3847fac7b327672b0`.
+- All four unit tests passed in the `Kaggle` Conda environment from retained
+  screen window `biohub-audit-test`.
+- Raw server test log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s010_frozen_audit_tests_20260723.log`.
+- Status: locally and server validated; full-data execution waits for download
+  and extraction completion.
 - Source edits on server: none.
