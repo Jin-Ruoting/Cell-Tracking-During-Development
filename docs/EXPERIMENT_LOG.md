@@ -477,3 +477,21 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 - Full leaderboard archive:
   `/tmp/biohub_leaderboard_20260723/biohub-cell-tracking-during-development.zip`.
 - Source edits on server: none.
+
+## S020 - Final Repository Closure Audit
+
+- Time: 2026-07-24 01:03 CST.
+- Pre-closure commit:
+  `23aaabddb8478d5578ed16d1253dede7cbd4bec3`.
+- Local `HEAD`, local `origin/main`, live GitHub `main`, server `HEAD`, and
+  server `origin/main` all resolved to the same commit.
+- Local and server worktrees were clean with no staged or unstaged diff.
+- The public repository contained 23 tracked files and zero tracked data,
+  logs, submissions, model weights, archives, CSV outputs, Zarr arrays, or GEFF
+  labels.
+- Server `Dataset/`, `logs/`, and the S019 raw log were confirmed ignored.
+- Seventeen focused tests, both Bash syntax checks, notebook-output stripping,
+  whitespace validation, and the secret-pattern scan passed.
+- `screen -ls` reported one detached session, `Kaggle`; it was retained.
+- This closure record is the only change after the pre-closure audit. After
+  push, it is fast-forwarded to the server and the same invariants are rechecked.

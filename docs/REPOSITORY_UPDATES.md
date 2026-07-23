@@ -249,5 +249,19 @@
   the strict top-10% cutoff is rank 156 with score `0.904`.
 - Updated the leaderboard, experiment record, project status, and held-candidate
   decisions without adding the leaderboard archive or server log to Git.
-- Server source changes: none; final synchronization and clean-repository audit
-  remain.
+- Fast-forwarded the server to the goal-completion commit and completed the
+  pre-closure clean-repository audit.
+- Server source changes: none.
+
+## U024 - Add Final Closure Evidence
+
+- Time: 2026-07-24 01:03 CST.
+- Recorded the matching local, GitHub, and server SHA evidence from commit
+  `23aaabd`.
+- Recorded clean worktrees, zero forbidden tracked artifacts, passing tests and
+  syntax checks, stripped notebook outputs, and one retained `Kaggle` screen
+  session.
+- This documentation-only closure update is the final repository change. After
+  push, the server is fast-forwarded once more and the same invariants are
+  rechecked.
+- Server source changes: none.
