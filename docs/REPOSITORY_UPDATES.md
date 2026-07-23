@@ -54,3 +54,11 @@
   `Kaggle` screen.
 - Kept all raw logs, downloaded output artifacts, data, and submissions outside
   Git.
+
+## U006 - Correct Strict Top-10% Cutoff
+
+- Time: 2026-07-23
+- Refreshed the live leaderboard at 1,549 teams.
+- Corrected the qualifying rank from an upward-rounded 155 to the strict
+  `floor(1,549 * 0.10) = 154`.
+- Verified that the score at displayed rank 154 remained `0.902`.
