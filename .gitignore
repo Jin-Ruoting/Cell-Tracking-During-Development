@@ -1,0 +1,34 @@
+# Local Codex and agent state
+AGENTS.md
+AGENTS.override.md
+agents.md
+agents.override.md
+.agents/
+.codex/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Notebook state
+.ipynb_checkpoints/
+
+# Competition data and generated artifacts
+Dataset/
+data/
+artifacts/
+outputs/
+submissions/
+logs/
+*.log
+submission.csv
+
+# Local environment and operating-system files
+.env
+.env.*
+.DS_Store
