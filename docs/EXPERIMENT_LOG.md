@@ -23,7 +23,7 @@ Status: audit complete; no project source was edited on the server.
 
 ## E000 - Clean Baseline Reproduction
 
-- Status: Kaggle Notebook version 1 running
+- Status: version 1 failed before inference; version 2 preparation pending
 - Candidate: `buaaauto/biohub-clean-baseline-no-metric-exploit`
 - Source: attributed public no-exploit notebook.
 - Expected clean public baseline reference: approximately `0.908`; this is not
@@ -55,4 +55,25 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 - Kaggle normalized the requested slug from `biohub-clean-baseline-no-hack` to
   `biohub-clean-baseline-no-metric-exploit`; local metadata will use the
   canonical slug for future versions.
+- Source edits on server: none.
+
+## S004 - E000 Version 1 Failure Diagnosis
+
+- Time: 2026-07-23 16:13 CST
+- Terminal Kaggle status: `ERROR`.
+- Failure occurred before the first model inference completed and no
+  `submission.csv` was produced.
+- Root cause: Kaggle assigned a Tesla P100 (`sm_60`), while the current Kaggle
+  PyTorch image used by the notebook supports CUDA architectures `sm_70` and
+  newer. The first UNet CUDA operation raised
+  `torch.AcceleratorError: no kernel image is available for execution on the device`.
+- This was an execution-environment mismatch, not a model or graph failure.
+- Correction: pin the exact upstream runtime image and
+  `NvidiaTeslaT4` machine shape in kernel metadata.
+- Downloaded failure artifacts only to server `/tmp/biohub_e000_v1` for
+  inspection; no output entered Git.
+- Raw status log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e000_kernel_status_20260723_161126.log`.
+- Raw output-download log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e000_kernel_output_20260723_161126.log`.
 - Source edits on server: none.

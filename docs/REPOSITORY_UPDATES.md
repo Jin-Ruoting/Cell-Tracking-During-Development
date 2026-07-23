@@ -34,3 +34,12 @@
   keyword.
 - Recorded the exact launch commit, screen window, log path, and initial
   `RUNNING` state for E000.
+
+## U004 - Pin Compatible Kaggle Runtime
+
+- Time: 2026-07-23
+- Recorded E000 version 1's terminal `ERROR` and exact CUDA compatibility
+  failure.
+- Pinned the same Kaggle Docker image and `NvidiaTeslaT4` machine shape used by
+  the successful upstream public notebook.
+- No model, threshold, post-processing, or submission logic changed.
