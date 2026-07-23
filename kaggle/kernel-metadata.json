@@ -1,6 +1,6 @@
 {
   "id": "buaaauto/biohub-clean-baseline-no-metric-exploit",
-  "title": "Biohub Clean Baseline | No Metric Exploit",
+  "title": "Biohub E001 | Clean Baseline Control | No Metric Exploit",
   "code_file": "biohub_clean_baseline.ipynb",
   "language": "python",
   "kernel_type": "notebook",

@@ -62,3 +62,14 @@
 - Corrected the qualifying rank from an upward-rounded 155 to the strict
   `floor(1,549 * 0.10) = 154`.
 - Verified that the score at displayed rank 154 remained `0.902`.
+
+## U007 - Prepare E001 No-Rescue Control
+
+- Time: 2026-07-23 17:16 CST.
+- Corrected the experiment description to distinguish E000's public
+  short-track-rescue revision from its stated clean baseline control.
+- Pinned the exact upstream notebook SHA256 in the generator and reuse notice.
+- Prepared E001 by disabling only adaptive five-node rescue; detection, ILP,
+  motion, and all other post-processing settings remain unchanged.
+- Kept notebook outputs stripped and updated Kaggle metadata for the E001 run.
+- Server source changes: none; execution requires a later `git pull --ff-only`.

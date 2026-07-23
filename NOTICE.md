@@ -6,11 +6,16 @@
 - Author: Yusuke Togashi
 - URL: https://www.kaggle.com/code/yusuketogashi/clean-approach-lightweight-local-cv-no-hack
 - Upstream state observed: 2026-07-23
+- Upstream notebook SHA256:
+  `b754eaffca194e1b1ebbf5aa6471016996313eea1f18af4ff94316df749a2684`
 
-The preparation step changes attribution/title text, clears execution state, and
-keeps the upstream tracking logic intact. Kaggle competition rules permit public
-notebook sharing and reuse, but users remain responsible for complying with the
-competition rules and the terms attached to upstream datasets and artifacts.
+E000 preserved the pinned revision's tracking logic. The current E001 preparation
+selects the A/B control described by that revision by changing only
+`BIOHUB_ADAPTIVE_SHORT_TRACK_RESCUE` from `1` to `0`; it also makes attribution
+and experiment text explicit, clears execution state, and normalizes notebook
+metadata. Kaggle competition rules permit public notebook sharing and reuse, but
+users remain responsible for complying with the competition rules and the terms
+attached to upstream datasets and artifacts.
 
 The official patched metric and its documentation are maintained separately at:
 

@@ -20,10 +20,11 @@ validating across both training embryos.
 - Public leaderboard: approximately 29% of hidden test data; final ranking uses
   the remaining 71%, so embryo-robust CV matters.
 
-## E000: Reproduce Clean Public Baseline
+## E000: Reproduce Public Rescue Candidate
 
-Run the attributed no-exploit public pipeline unchanged apart from notebook
-metadata. It combines:
+Run the pinned, attributed no-exploit public revision unchanged apart from
+notebook metadata. That revision enables a conservative five-node short-track
+rescue on top of its stated `0.908` baseline. The pipeline combines:
 
 1. 3D learned cell detection.
 2. Learned adjacent-frame edge scoring.
@@ -32,21 +33,21 @@ metadata. It combines:
    handling.
 5. Schema guards and fixed-eight official-spec local CV.
 
-Promotion rule: submit only after the notebook succeeds, creates a valid
-`submission.csv`, and preserves physically valid node coordinates and graph
-edges.
+Promotion rule: use it as the first leaderboard anchor only after the notebook
+succeeds, creates a valid `submission.csv`, and preserves physically valid node
+coordinates and graph edges.
 
 ## Next Experiments
 
 | ID | Change | Reason | Main guard |
 |---|---|---|---|
-| E001 | Reproduce the clean baseline | Establish score and runtime | Exact notebook/version record |
-| E002 | Disable five-node rescue | Isolate rescue contribution | Same detector and ILP settings |
-| E003 | Tune detection threshold | Detection was the strongest public lever | Both embryos, fixed scorer |
-| E004 | Freeze-aware relinking | `6bba` contains repeated frames | Detect duplicates from images, no schedule memorization |
-| E005 | Motion/intensity LAP cost | Reduce dense-region track swaps | Component and edge FP controls |
-| E006 | Conservative division calibration | Recover the weighted division term | Patched scorer only |
-| E007 | Cross-embryo pseudo-label ensemble | Improve sparse supervision | No hidden-test probing |
+| E001 | Disable five-node rescue | Run the public revision's A/B control | Same detector and ILP settings |
+| E002 | Tune detection threshold | Detection was the strongest public lever | Both embryos, fixed scorer |
+| E003 | Freeze-aware relinking | `6bba` contains repeated frames | Detect duplicates from images, no schedule memorization |
+| E004 | Motion/intensity LAP cost | Reduce dense-region track swaps | Component and edge FP controls |
+| E005 | Conservative division calibration | Recover the weighted division term | Patched scorer only |
+| E006 | Cross-embryo pseudo-label ensemble | Improve sparse supervision | No hidden-test probing |
+| E007 | Detector ensemble or retraining | Improve embryo robustness | Embryo-disjoint promotion gate |
 
 ## Evidence Policy
 

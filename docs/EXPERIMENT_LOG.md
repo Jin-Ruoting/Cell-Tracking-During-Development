@@ -21,13 +21,14 @@ server and are never committed.
 
 Status: audit complete; no project source was edited on the server.
 
-## E000 - Clean Baseline Reproduction
+## E000 - Public Rescue-Candidate Reproduction
 
 - Status: kernel version 2 complete; competition submission pending
 - Candidate: `buaaauto/biohub-clean-baseline-no-metric-exploit`
-- Source: attributed public no-exploit notebook.
+- Source: pinned, attributed public no-exploit notebook revision with adaptive
+  five-node short-track rescue enabled.
 - Expected clean public baseline reference: approximately `0.908`; this is not
-  yet our verified score.
+  yet our verified score and is the upstream control rather than an E000 result.
 
 ## S002 - Server Repository Bootstrap
 
@@ -131,4 +132,19 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 - Status at record time: running.
 - Raw log:
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/dataset_download_20260723_162300.log`.
+- Source edits on server: none.
+
+## S008 - E001 Clean Baseline Control Preparation
+
+- Time: 2026-07-23 17:16 CST.
+- Rationale: E000's fixed-8 score `0.87892959136423` was below the pinned public
+  notebook's control reference `0.879219745066878` by `0.000290153702648`.
+- Controlled change: set only
+  `BIOHUB_ADAPTIVE_SHORT_TRACK_RESCUE=0`; retain the same detector threshold,
+  ILP costs, motion gates, and all other graph settings.
+- Pinned upstream notebook SHA256:
+  `b754eaffca194e1b1ebbf5aa6471016996313eea1f18af4ff94316df749a2684`.
+- The preparation script rejects source drift, strips all execution output, and
+  updates experiment-facing text to describe the control arm.
+- Status: locally prepared and validated; not yet launched.
 - Source edits on server: none.

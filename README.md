@@ -7,7 +7,7 @@ The immediate target is a clean top-10% public leaderboard result without metric
 exploits. The repository keeps source code and experiment records only. Competition
 data, model artifacts, notebook outputs, submissions, and server logs are excluded.
 
-## Current Baseline
+## Current Experiments
 
 The first submission candidate is a reproducible fork of Yusuke Togashi's public
 [Clean Approach + Lightweight Local CV | No Hack](https://www.kaggle.com/code/yusuketogashi/clean-approach-lightweight-local-cv-no-hack)
@@ -15,8 +15,13 @@ notebook, observed on 2026-07-23 after Kaggle completed the patched-metric resco
 The upstream clean pipeline uses a 3D detector, learned edge scorer, ILP graph
 construction, conservative graph repair, and an official-spec local metric check.
 
-The fork preserves the tracking logic and adds explicit attribution plus repository
-hygiene. See [NOTICE.md](NOTICE.md) before reusing the notebook.
+E000 reproduced that public revision's adaptive five-node short-track rescue.
+E001 is its controlled baseline arm: it disables only the rescue switch because
+E000's fixed-8 score was `0.000290154` below the public control reference. The
+source snapshot is SHA256-pinned, outputs are stripped, and the transformation is
+reproducible through `scripts/prepare_public_baseline.py`.
+
+See [NOTICE.md](NOTICE.md) before reusing the notebook.
 
 ## Repository Layout
 
