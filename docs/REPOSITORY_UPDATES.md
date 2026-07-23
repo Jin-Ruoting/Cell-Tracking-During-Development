@@ -123,3 +123,13 @@
   199 GEFF labels, and the `Kaggle` Conda environment.
 - Kept progress logs, JSON reports, and completion markers outside Git.
 - Server source changes: none; execution requires a later `git pull --ff-only`.
+
+## U013 - Record Deferred Audit Launch
+
+- Time: 2026-07-23 17:39 CST.
+- Fast-forwarded the clean server checkout to runner commit `e049aa2`.
+- Passed server Bash syntax validation, activated Conda environment `Kaggle`,
+  and launched the runner in retained screen window `biohub-freeze-audit`.
+- Verified the initial log reports a waiting state with zero extracted training
+  pairs; no premature audit execution occurred.
+- Server source changes: none.
