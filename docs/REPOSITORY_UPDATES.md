@@ -114,3 +114,12 @@
   the retained `Kaggle` screen; all passed.
 - Recorded the exact server commit, screen window, and ignored raw-log path.
 - Server source changes: none.
+
+## U012 - Add Deferred Frozen-Audit Runner
+
+- Time: 2026-07-23 17:35 CST.
+- Replaced fragile inline `screen` quoting with a versioned Bash runner.
+- Added explicit gates for active downloads, active unzip jobs, 199 Zarr clips,
+  199 GEFF labels, and the `Kaggle` Conda environment.
+- Kept progress logs, JSON reports, and completion markers outside Git.
+- Server source changes: none; execution requires a later `git pull --ff-only`.

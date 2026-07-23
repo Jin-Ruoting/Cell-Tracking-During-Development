@@ -207,3 +207,19 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 - Status: locally and server validated; full-data execution waits for download
   and extraction completion.
 - Source edits on server: none.
+
+## S011 - Deferred Full-Data Frozen Audit
+
+- Time: 2026-07-23 17:35 CST.
+- Two initial attempts to embed the complete wait condition directly in
+  `screen -X` exited during window creation. Neither attempt produced an audit
+  log, ran the audit, or changed server source.
+- Correction: add a versioned Bash runner that waits for the Kaggle download and
+  unzip processes to finish, requires exactly 199 `.zarr` and 199 `.geff`
+  training entries, verifies the active `Kaggle` Conda environment, and only then
+  runs the committed audit.
+- Generated JSON, progress output, and completion markers remain in ignored
+  server `logs/`.
+- Status: runner prepared locally; launch awaits commit, push, and server
+  `git pull --ff-only`.
+- Source edits on server: none.
