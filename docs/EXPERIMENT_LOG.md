@@ -420,6 +420,11 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   target.
 - Added six focused tests for relinking, assignment gates, edge counting, and
   the node-count adjustment formula. Seventeen combined local tests passed.
+- The first inline `screen` launch attempt at 20:08 CST created neither a
+  window nor a log, so no evaluator or experiment ran. Rather than retrying the
+  same fragile command, a versioned `scripts/run_e003_ablation.sh` runner now
+  owns the baseline assertion, seven distance gates, graph audits, and summary
+  generation.
 - Status: locally validated; server baseline reproduction and distance sweep
   pending.
 - Source edits on server: none.

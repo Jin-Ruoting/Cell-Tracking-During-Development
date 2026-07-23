@@ -213,3 +213,15 @@
 - Documented the one-time evaluator reproduction check and the disjoint-holdout
   tuning boundary.
 - Server source changes: none; execution requires a later `git pull --ff-only`.
+
+## U021 - Replace Fragile E003 Inline Launch
+
+- Time: 2026-07-23 21:14 CST.
+- Recorded that the first inline `screen` command produced no window or log and
+  therefore ran no experiment.
+- Added a versioned Bash runner that stops unless the independent evaluator
+  exactly reproduces E001's known all-eight edge counts and score.
+- The runner evaluates seven zero-motion distance gates only on the four
+  disjoint tuning holdouts, audits every candidate graph, and writes all
+  generated artifacts under ignored server `logs/`.
+- Server source changes: none; execution requires a later `git pull --ff-only`.
