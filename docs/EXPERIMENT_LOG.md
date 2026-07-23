@@ -136,7 +136,8 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 
 ## S008 - E001 Clean Baseline Control Preparation
 
-- Time: 2026-07-23 17:16 CST.
+- Preparation time: 2026-07-23 17:16 CST.
+- Launch time: 2026-07-23 17:18 CST.
 - Rationale: E000's fixed-8 score `0.87892959136423` was below the pinned public
   notebook's control reference `0.879219745066878` by `0.000290153702648`.
 - Controlled change: set only
@@ -146,5 +147,22 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `b754eaffca194e1b1ebbf5aa6471016996313eea1f18af4ff94316df749a2684`.
 - The preparation script rejects source drift, strips all execution output, and
   updates experiment-facing text to describe the control arm.
-- Status: locally prepared and validated; not yet launched.
+- Launch commit:
+  `c1191c3129051895cafc5ff9fca6c6a61818c3cf`.
+- Server synchronization: clean `git pull --ff-only` fast-forward from
+  `143fe76` to `c1191c3`.
+- Kaggle kernel version 3 was accepted under the existing canonical kernel ID;
+  one direct, non-interactive status check returned `RUNNING` without shell
+  job-control warnings.
+- Execution: retained `Kaggle` screen, window `biohub-e001`.
+- An event-driven terminal-state watcher runs in window
+  `biohub-e001-watch`; on completion it downloads outputs to server `/tmp` for
+  validation and leaves repository files untouched.
+- Raw kernel-push log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e001_kernel_push_20260723_171900.log`.
+- Raw status log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e001_kernel_status_20260723.log`.
+- Raw output-download log after terminal state:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e001_kernel_output_20260723.log`.
+- Status: kernel version 3 running.
 - Source edits on server: none.

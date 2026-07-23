@@ -73,3 +73,14 @@
   motion, and all other post-processing settings remain unchanged.
 - Kept notebook outputs stripped and updated Kaggle metadata for the E001 run.
 - Server source changes: none; execution requires a later `git pull --ff-only`.
+
+## U008 - Record E001 Launch
+
+- Time: 2026-07-23 17:18 CST.
+- Committed and pushed E001 as `c1191c3`, then fast-forwarded the clean server
+  checkout to that exact commit with `git pull --ff-only`.
+- Recorded Kaggle kernel version 3 acceptance, initial `RUNNING` state, retained
+  screen windows, and raw log paths.
+- Replaced ad hoc foreground status checks with an event-driven watcher that
+  downloads terminal output to server `/tmp`.
+- Server source changes: none.
