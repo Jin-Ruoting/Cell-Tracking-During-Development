@@ -1,5 +1,18 @@
 # Leaderboard
 
+## Snapshot: 2026-07-24 01:00 CST
+
+- Kaggle leaderboard export time: `2026-07-23T17:00:39Z`.
+- Competition teams: 1,566.
+- Strict top-10% target rank: 156 or better
+  (`floor(1,566 * 0.10)`).
+- Score at rank 156: `0.904`.
+- Current leader score: `0.929`.
+- Team `Steven #2`, member `buaaauto`: rank 78 with score `0.908`.
+- Rank fraction: `78 / 1,566 = 0.049808...`, approximately top 4.98%.
+- Result: the strict top-10% target is achieved with a 78-rank margin to the
+  cutoff.
+
 ## Snapshot: 2026-07-23 17:05 CST
 
 - Competition teams: 1,549.
@@ -21,10 +34,11 @@ the current maximum qualifying rank.
 
 | Experiment | Submission ID | Public score | Rank / teams | Percentile | Status |
 |---|---:|---:|---:|---:|---|
-| E000 | 54923913 | pending | pending | pending | Hidden-test rerun pending |
+| E000 | 54923913 | `0.908` | 78 / 1,566 | top 4.98% | Complete; target achieved |
 
 ## Held Candidates
 
 | Experiment | Kaggle version | Fixed-8 score | Decision |
 |---|---:|---:|---|
-| E001 no-rescue control | 3 | `0.8789316335` | Hold; only `+0.0000020421` versus E000 while E000 scoring is pending |
+| E001 no-rescue control | 3 | `0.8789316335` | Do not submit; local delta over E000 is negligible and E000 achieved the target |
+| E003 zero-motion LAP | local | best `0.8680921294` on disjoint holdouts | Reject; tied E001 at best |

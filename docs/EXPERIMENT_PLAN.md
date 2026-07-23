@@ -6,6 +6,9 @@ Reach the top 10% of the Biohub public leaderboard with a legitimate,
 reproducible pipeline, then protect against public/private leaderboard shift by
 validating across both training embryos.
 
+Status: achieved on 2026-07-24. E000 scored `0.908` and ranked 78 of 1,566
+teams, approximately top 4.98%.
+
 ## Competition Facts
 
 - Task: detect cell centroids in 3D time-lapse volumes, link them across time,

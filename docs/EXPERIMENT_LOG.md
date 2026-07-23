@@ -457,3 +457,23 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s018_e003_sweep_summary_20260723.json`.
 - Status: completed with runner exit code `0`; E003 rejected.
 - Source edits on server: none.
+
+## S019 - E000 Terminal Score and Top-10% Verification
+
+- Watcher terminal time: 2026-07-23 23:02:55 CST.
+- Authoritative terminal submission query: 2026-07-24 01:00 CST.
+- Submission ID: `54923913`.
+- Description: `E000 clean baseline no metric exploit, T4, e44703a`.
+- Kaggle status: `SubmissionStatus.COMPLETE`.
+- Public score: `0.908`.
+- Full leaderboard export time: `2026-07-23T17:00:39Z`.
+- Team: `Steven #2`; member: `buaaauto`.
+- Rank: 78 of 1,566 teams, approximately top 4.98%.
+- Strict top-10% cutoff: rank 156; score at rank 156: `0.904`.
+- Margin: 78 ranks better and `0.004` score above the displayed cutoff row.
+- Result: the project objective is achieved.
+- Raw terminal query and leaderboard summary log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s019_terminal_submission_and_leaderboard_20260723.log`.
+- Full leaderboard archive:
+  `/tmp/biohub_leaderboard_20260723/biohub-cell-tracking-during-development.zip`.
+- Source edits on server: none.

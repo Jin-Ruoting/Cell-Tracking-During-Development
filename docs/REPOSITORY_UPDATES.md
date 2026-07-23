@@ -239,3 +239,15 @@
 - Rejected E003 without creating a Kaggle submission and kept every generated
   CSV, JSON report, completion marker, and raw log outside Git.
 - Server source changes: none.
+
+## U023 - Record Top-10% Goal Completion
+
+- Time: 2026-07-24 01:04 CST.
+- Recorded E000 submission `54923913` as `COMPLETE` with public score `0.908`.
+- Downloaded the full leaderboard to server `/tmp` and counted 1,566 teams.
+- Verified team `Steven #2` (`buaaauto`) at rank 78, approximately top 4.98%;
+  the strict top-10% cutoff is rank 156 with score `0.904`.
+- Updated the leaderboard, experiment record, project status, and held-candidate
+  decisions without adding the leaderboard archive or server log to Git.
+- Server source changes: none; final synchronization and clean-repository audit
+  remain.
