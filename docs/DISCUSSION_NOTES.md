@@ -23,7 +23,8 @@ Operational decision:
 - Do not duplicate a submission merely because it remains `PENDING` for minutes.
 - Use the retained event watcher and act only on a terminal Kaggle status.
 - For every candidate, record node count, edge count, component count, largest
-  component, and edge-to-node ratio before submission.
+  component, and edge-to-node ratio before submission with
+  `scripts/audit_submission.py`.
 
 ## Frozen Frames and Global Jumps
 

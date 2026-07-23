@@ -133,3 +133,13 @@
 - Verified the initial log reports a waiting state with zero extracted training
   pairs; no premature audit execution occurred.
 - Server source changes: none.
+
+## U014 - Add Independent Submission Auditor
+
+- Time: 2026-07-23 17:42 CST.
+- Added a standard-library CSV and graph validator with component-size
+  diagnostics motivated by the scorer-connectivity discussion.
+- Added optional coordinate-bound validation against Zarr metadata.
+- Added four focused unit tests and linked the auditor from the discussion gates.
+- Kept generated audit reports outside Git.
+- Server source changes: none; execution requires a later `git pull --ff-only`.

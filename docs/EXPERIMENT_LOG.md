@@ -232,3 +232,20 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s011_frozen_frame_audit_20260723.json`.
 - Status: deferred runner active.
 - Source edits on server: none.
+
+## S012 - Independent Submission Audit Preparation
+
+- Time: 2026-07-23 17:42 CST.
+- The E000 `run_stats.csv` was inspected from `/tmp/biohub_e000_v2`; it records
+  per-dataset nodes, edges, divisions, and post-processing counts but not
+  connected-component sizes.
+- An initial read from the server's default shell returned
+  `python: command not found`; rerunning with the exact `Kaggle` environment
+  interpreter succeeded. No server file was edited.
+- Added a dependency-free submission auditor for CSV schema, row IDs, sentinels,
+  node and edge uniqueness, dangling edges, temporal adjacency, lineage degrees,
+  optional Zarr coordinate bounds, and connected-component statistics.
+- Added four unit tests covering valid connectivity, graph violations, coordinate
+  bounds, and malformed headers.
+- Status: locally implemented; validation and E000 execution pending.
+- Source edits on server: none.
