@@ -28,3 +28,14 @@ Status: audit complete; no project source was edited on the server.
 - Source: attributed public no-exploit notebook.
 - Expected clean public baseline reference: approximately `0.908`; this is not
   yet our verified score.
+
+## S002 - Server Repository Bootstrap
+
+- Time: 2026-07-23
+- Cloned the public GitHub repository into the previously empty server project
+  directory at local/GitHub commit `788f4083b6f34220004001af0cce4c1617cfa57b`.
+- Created the ignored `Dataset/` and `logs/` runtime directories.
+- Verified `main...origin/main` with no tracked or untracked repository changes.
+- Source edits on server: none.
+
+Status: server is ready for future `git pull --ff-only` synchronization.
