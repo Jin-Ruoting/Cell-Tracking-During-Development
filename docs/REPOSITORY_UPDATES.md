@@ -23,3 +23,14 @@
 - Bootstrapped the previously empty server checkout from that exact commit.
 - Created only ignored runtime directories on the server; project source
   remained untouched there.
+
+## U003 - Canonical Kaggle Kernel Metadata
+
+- Time: 2026-07-23
+- Updated the kernel ID to Kaggle's canonical
+  `buaaauto/biohub-clean-baseline-no-metric-exploit` slug after version 1 was
+  accepted.
+- Removed unsupported free-form Kaggle tags while retaining the valid `gpu`
+  keyword.
+- Recorded the exact launch commit, screen window, log path, and initial
+  `RUNNING` state for E000.

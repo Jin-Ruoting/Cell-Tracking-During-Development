@@ -23,8 +23,8 @@ Status: audit complete; no project source was edited on the server.
 
 ## E000 - Clean Baseline Reproduction
 
-- Status: pending
-- Candidate: `buaaauto/biohub-clean-baseline-no-hack`
+- Status: Kaggle Notebook version 1 running
+- Candidate: `buaaauto/biohub-clean-baseline-no-metric-exploit`
 - Source: attributed public no-exploit notebook.
 - Expected clean public baseline reference: approximately `0.908`; this is not
   yet our verified score.
@@ -39,3 +39,20 @@ Status: audit complete; no project source was edited on the server.
 - Source edits on server: none.
 
 Status: server is ready for future `git pull --ff-only` synchronization.
+
+## S003 - E000 Kaggle Notebook Push
+
+- Time: 2026-07-23 16:11 CST
+- Server HEAD before launch:
+  `00fc0fc60c58b969dd9fb0594d2de24e2cb2a191`.
+- Launched from the persistent `Kaggle` screen in window `biohub-e000`; the
+  window and screen were left open.
+- Kaggle kernel version 1 was accepted and started at:
+  `buaaauto/biohub-clean-baseline-no-metric-exploit`.
+- Initial Kaggle status: `RUNNING`.
+- Raw server log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e000_kernel_push_20260723_161126.log`.
+- Kaggle normalized the requested slug from `biohub-clean-baseline-no-hack` to
+  `biohub-clean-baseline-no-metric-exploit`; local metadata will use the
+  canonical slug for future versions.
+- Source edits on server: none.
