@@ -95,3 +95,13 @@
   patched-metric exploit paths.
 - Recorded the decision not to duplicate the still-pending E000 submission.
 - Server source changes: none; synchronization requires `git pull --ff-only`.
+
+## U010 - Add Exact Frozen-Frame Audit
+
+- Time: 2026-07-23 17:30 CST.
+- Added `scripts/audit_frozen_frames.py` for dependency-free comparison of
+  consecutive Zarr v3 frame chunks.
+- Added focused synthetic-layout unit tests under `tests/`.
+- Linked the audit command to E003's discussion-derived validation gate.
+- Kept generated JSON reports and server logs outside Git.
+- Server source changes: none; execution requires a later `git pull --ff-only`.

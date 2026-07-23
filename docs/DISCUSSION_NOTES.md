@@ -38,9 +38,17 @@ reported in the 71 `44b6` clips. It also reports occasional global spatial jumps
 Evidence status: participant-reported; local verification is pending completion
 of the competition-data download.
 
+The committed `scripts/audit_frozen_frames.py` performs an exact encoded-chunk
+comparison without loading or decompressing the full 3D volumes. It validates the
+dataset's Zarr v3 chunk layout before comparing every consecutive transition.
+Byte equality is a conclusive duplicate witness; the audit also records the
+comparison method so that decoded-array confirmation can be added if the dataset
+uses non-deterministic encoding.
+
 E003 promotion gates:
 
-1. Recompute exact consecutive-frame equality for all 199 training clips.
+1. Recompute exact consecutive-frame equality for all 199 training clips with
+   `scripts/audit_frozen_frames.py`.
 2. Report results separately for `44b6` and `6bba`.
 3. Detect frozen transitions from image content at inference time; never encode a
    memorized frame schedule.

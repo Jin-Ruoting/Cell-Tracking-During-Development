@@ -185,3 +185,18 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 - Detailed source links and promotion gates:
   `docs/DISCUSSION_NOTES.md`.
 - Source edits on server: none.
+
+## S010 - Frozen-Frame Audit Tool Preparation
+
+- Time: 2026-07-23 17:30 CST.
+- Added a standard-library-only audit for exact consecutive-frame duplicates in
+  the competition's Zarr v3 `tzyx` arrays.
+- The audit validates four-dimensional shape, unit time chunks, default
+  slash-separated chunk keys, and the presence of every compared chunk.
+- It supports multiple spatial chunks, parallel clip processing, per-embryo
+  summaries, and JSON output outside Git.
+- Four synthetic-layout unit tests cover exact duplicates, multi-chunk frames,
+  invalid time chunks, split discovery, and embryo summaries.
+- Status: locally implemented; full-data execution waits for download and
+  extraction completion.
+- Source edits on server: none.
