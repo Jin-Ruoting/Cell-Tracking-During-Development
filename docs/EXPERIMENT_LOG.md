@@ -129,9 +129,22 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 - Destination: ignored server `Dataset/` directory.
 - Execution: existing `Kaggle` screen, window `biohub-data`; the screen session
   remains detached and retained.
-- Status at record time: running.
+- Download completion: before integrity verification at 2026-07-23 18:31 CST.
+- Archive size: `87,393,127,165` bytes.
+- `unzip -tq` result: no errors detected.
+- Extraction completion: 2026-07-23 18:57 CST.
+- Extracted inventory:
+  - 199 training `.zarr` arrays;
+  - 199 paired training `.geff` labels;
+  - four test `.zarr` arrays;
+  - `sample_submission.csv`.
+- Disk usage after extraction: 164 GiB including the retained 82 GiB archive;
+  extracted `train/` used 81 GiB and `test/` used 1.8 GiB.
 - Raw log:
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/dataset_download_20260723_162300.log`.
+- Raw integrity and extraction log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/dataset_unpack_20260723.log`.
+- Status: complete and integrity checked.
 - Source edits on server: none.
 
 ## S008 - E001 Clean Baseline Control Preparation
@@ -230,7 +243,19 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s011_frozen_frame_audit_20260723.log`.
 - Terminal JSON path:
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s011_frozen_frame_audit_20260723.json`.
-- Status: deferred runner active.
+- Gate satisfaction: 2026-07-23 18:57 CST at exactly 199 Zarr/GEFF pairs.
+- Audit completion: 2026-07-23 18:58 CST.
+- Execution commit:
+  `0a0c5b31a140c9bb1ea3e0c48bb6a5b116d61111`.
+- Compared all 19,701 adjacent transitions across 199 clips.
+- Locally reproduced the discussion claim exactly:
+  - `44b6`: 71 clips, zero affected clips, zero duplicate transitions;
+  - `6bba`: 128 clips, 114 affected clips, 947 duplicate transitions;
+  - total: 114 affected clips and 947 exact duplicate transitions.
+- A first read-only summary command lost nested shell quotes and raised
+  `NameError`; it wrote no files. The summary was then read successfully with
+  `jq`.
+- Status: complete; the frozen-frame hypothesis is now locally verified.
 - Source edits on server: none.
 
 ## S012 - Independent Submission Audit Preparation

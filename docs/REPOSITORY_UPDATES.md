@@ -164,3 +164,15 @@
   leaderboard scoring job while E000 is pending.
 - Kept all downloaded outputs and raw validation reports outside Git.
 - Server source changes: none.
+
+## U017 - Record Dataset and Frozen-Audit Completion
+
+- Time: 2026-07-23 19:00 CST.
+- Recorded the 87.39 GB archive's successful integrity test and complete
+  extraction into 199 training Zarr/GEFF pairs plus four test arrays.
+- Promoted the frozen-frame discussion claim from unverified to locally
+  reproduced: 947 exact transitions across 114 `6bba` clips and none in `44b6`.
+- Updated E003's rationale while retaining the no-schedule-memorization guard.
+- Kept the archive, extracted data, JSON audit, markers, and raw logs outside
+  Git.
+- Server source changes: none.

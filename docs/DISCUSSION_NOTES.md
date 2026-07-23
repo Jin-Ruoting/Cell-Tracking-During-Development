@@ -36,8 +36,12 @@ The thread reports exact consecutive-frame duplicates concentrated in embryo
 `6bba`: 947 duplicate pairs across 114 of 128 clips, with no exact duplicates
 reported in the 71 `44b6` clips. It also reports occasional global spatial jumps.
 
-Evidence status: participant-reported; local verification is pending completion
-of the competition-data download.
+Evidence status: locally reproduced on 2026-07-23 with exact encoded-chunk
+comparison. Across all 19,701 adjacent transitions, the audit found:
+
+- `44b6`: 71 clips, 0 affected clips, 0 duplicate transitions;
+- `6bba`: 128 clips, 114 affected clips, 947 duplicate transitions;
+- total: 199 clips, 114 affected clips, 947 duplicate transitions.
 
 The committed `scripts/audit_frozen_frames.py` performs an exact encoded-chunk
 comparison without loading or decompressing the full 3D volumes. It validates the
@@ -48,13 +52,10 @@ uses non-deterministic encoding.
 
 E003 promotion gates:
 
-1. Recompute exact consecutive-frame equality for all 199 training clips with
-   `scripts/audit_frozen_frames.py`.
-2. Report results separately for `44b6` and `6bba`.
-3. Detect frozen transitions from image content at inference time; never encode a
+1. Detect frozen transitions from image content at inference time; never encode a
    memorized frame schedule.
-4. Compare unchanged E001 tracking against freeze-aware linking on both embryos.
-5. Reject the change if gains are confined to one embryo or edge false positives
+2. Compare unchanged E001 tracking against freeze-aware linking on both embryos.
+3. Reject the change if gains are confined to one embryo or edge false positives
    rise materially.
 
 ## Detection and Temporal Affinity
