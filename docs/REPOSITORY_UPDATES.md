@@ -43,3 +43,14 @@
 - Pinned the same Kaggle Docker image and `NvidiaTeslaT4` machine shape used by
   the successful upstream public notebook.
 - No model, threshold, post-processing, or submission logic changed.
+
+## U005 - Record E000 Success and Submission
+
+- Time: 2026-07-23
+- Recorded kernel version 2's successful T4 execution, exact output hash,
+  graph counts, runtime, and fixed-eight official-spec CV metrics.
+- Recorded competition submission `54923913` and its initial `PENDING` state.
+- Recorded the 81.4 GiB competition-data download running in the retained
+  `Kaggle` screen.
+- Kept all raw logs, downloaded output artifacts, data, and submissions outside
+  Git.

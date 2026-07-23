@@ -23,7 +23,7 @@ Status: audit complete; no project source was edited on the server.
 
 ## E000 - Clean Baseline Reproduction
 
-- Status: version 1 failed before inference; version 2 preparation pending
+- Status: kernel version 2 complete; competition submission pending
 - Candidate: `buaaauto/biohub-clean-baseline-no-metric-exploit`
 - Source: attributed public no-exploit notebook.
 - Expected clean public baseline reference: approximately `0.908`; this is not
@@ -76,4 +76,59 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e000_kernel_status_20260723_161126.log`.
 - Raw output-download log:
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e000_kernel_output_20260723_161126.log`.
+- Source edits on server: none.
+
+## S005 - E000 Version 2 Successful Notebook Run
+
+- Launch time: 2026-07-23 16:18 CST
+- Terminal time: 2026-07-23 16:55 CST
+- Launch commit:
+  `e44703ab27e9a9699d35bd6ca16b1edcec31c59e`.
+- Runtime correction: pinned `NvidiaTeslaT4` and the upstream Kaggle image.
+- Kaggle status: `COMPLETE`.
+- Example-test prediction: 4 videos in 9.93 minutes.
+- Submission rows: 236,203 total, comprising 120,246 nodes and 115,957 edges.
+- Submission SHA256:
+  `512d3f5fbc927d2c0cd59ad4b4bf22f7259acea07ea5d4c7ed7da706e2b65add`.
+- Short-track rescue: 12 components / 60 nodes in one dataset.
+- Fixed-eight official-spec lite CV:
+  - combined score / adjusted edge Jaccard: `0.87892959136423`;
+  - edge TP / FP / FN: `3852 / 287 / 251`;
+  - node recall: `0.9804152902312412`;
+  - division Jaccard: `0.0`;
+  - the pre-CV and post-CV submission hashes were identical.
+- Raw kernel-push log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e000_v2_kernel_push_20260723_161757.log`.
+- Raw kernel-status log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e000_v2_kernel_status_20260723.log`.
+- Raw output-download log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e000_v2_kernel_output_20260723_165600.log`.
+- Source edits on server: none.
+
+## S006 - E000 Competition Submission
+
+- Submission time: 2026-07-23 17:01 CST.
+- Submission ID: `54923913`.
+- Kernel: `buaaauto/biohub-clean-baseline-no-metric-exploit`, version 2.
+- Message: `E000 clean baseline no metric exploit, T4, e44703a`.
+- Initial status: `PENDING`; public and private scores were not yet available.
+- An event-driven watcher runs in the existing `Kaggle` screen and logs status
+  changes without editing repository files.
+- Raw submission command log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e000_v2_submission_20260723_165900.log`.
+- Raw submission-status log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/e000_submission_status_54923913.log`.
+
+## S007 - Competition Dataset Download
+
+- Start time: 2026-07-23 16:23 CST.
+- Server HEAD:
+  `e44703ab27e9a9699d35bd6ca16b1edcec31c59e`.
+- Download size reported by Kaggle: 81.4 GiB.
+- Destination: ignored server `Dataset/` directory.
+- Execution: existing `Kaggle` screen, window `biohub-data`; the screen session
+  remains detached and retained.
+- Status at record time: running.
+- Raw log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/dataset_download_20260723_162300.log`.
 - Source edits on server: none.

@@ -16,4 +16,4 @@ check; the cutoff is expected to move.
 
 | Experiment | Submission ID | Public score | Rank / teams | Percentile | Status |
 |---|---:|---:|---:|---:|---|
-| E000 | pending | pending | pending | pending | Notebook preparation |
+| E000 | 54923913 | pending | pending | pending | Hidden-test rerun pending |
