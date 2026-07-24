@@ -433,3 +433,16 @@
 - Added a regression test proving that a shared candidate is assigned only to
   the higher-confidence parent.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U038 - Add Official Fork-Outcome Diagnostics
+
+- Time: 2026-07-24 14:12 CST.
+- Added a scorer-grounded diagnostic that joins every added edge to the exact
+  predicted fork sets classified as true positive, false positive, or ignored
+  by patched division scoring.
+- The first diagnostic covers the broad pre-ILP rule and the geometry-only
+  rule; narrower pre-ILP rules are subsets of the broad candidate set.
+- Added tests for candidate specification parsing and embryo-level outcome
+  summaries.
+- Reports and logs remain outside Git.
+- Server source changes: none; execution requires `git pull --ff-only`.

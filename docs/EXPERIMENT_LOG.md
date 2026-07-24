@@ -726,3 +726,35 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `s043_e005_division_candidate_audit_20260724a.log`, and
   `s044_e005_direct_fork_sweep_20260724a.log`, all under server `logs/`.
 - Source edits on server: none.
+
+## S044b - Official Direct-Fork Rule Sweep
+
+- Time: 2026-07-24 13:59-14:07 CST.
+- Fast-forwarded the clean server checkout to `137d51e`; all 38 focused
+  project tests passed.
+- One-to-one parent/root assignment generated all five 64-clip candidate sets
+  without a merge or graph-structure failure.
+- Official patched-score results:
+
+| Rule | Added edges | Score | Adjusted edge | Division Jaccard | Division TP/FP/FN |
+|---|---:|---:|---:|---:|---:|
+| baseline | 0 | 0.9073 | 0.9073 | 0.0000 | 0/0/75 |
+| preedge broad | 4,388 | 0.9166 | 0.9073 | 0.0931 | 19/129/56 |
+| preedge balanced | 2,572 | **0.9171** | 0.9074 | **0.0972** | 14/69/61 |
+| preedge high-probability | 975 | 0.9165 | 0.9076 | 0.0891 | 9/26/66 |
+| preedge symmetric | 194 | 0.9110 | 0.9073 | 0.0370 | 3/6/72 |
+| geometry symmetric | 3,627 | 0.9119 | 0.9064 | 0.0552 | 9/88/66 |
+
+- The balanced rule improved the calibration score by `+0.0098` while
+  preserving the adjusted edge term. This is meaningful but still below the
+  approximate `+0.013` needed for a strict `>0.92` public target.
+- The high-probability rule has the best precision among useful candidates;
+  reducing its 26 false-positive forks while retaining its nine true-positive
+  forks is the next tuning target.
+- Completion marker:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s044_e005_direct_fork_sweep_20260724b.done`.
+- Rule report and raw logs:
+  `s044_e005_direct_fork_sweep_20260724b.json`,
+  `s044_e005_direct_fork_sweep_20260724b.log`, and the six
+  `s044_e005_score_*_20260724b.log` files under server `logs/`.
+- Source edits on server: none.
