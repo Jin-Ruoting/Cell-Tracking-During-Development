@@ -758,3 +758,18 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `s044_e005_direct_fork_sweep_20260724b.log`, and the six
   `s044_e005_score_*_20260724b.log` files under server `logs/`.
 - Source edits on server: none.
+
+## S045a - Fork-Outcome API Compatibility Stop
+
+- Time: 2026-07-24 14:11 CST.
+- Fast-forwarded the server to `9f83b3b`; all 41 focused tests passed.
+- The diagnostic stopped on its first clip because the installed tracksdata
+  build exposes `edge_list` as a callable method, while the first
+  implementation treated it as an iterable property.
+- No outcome report or completion marker was produced. S041 and S044b inputs
+  remained unchanged.
+- Corrective action: normalize both API forms in one helper, add parameterized
+  regression coverage, and rerun with a new run ID.
+- Raw log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s045_e005_official_fork_outcomes_20260724a.log`.
+- Source edits on server: none.

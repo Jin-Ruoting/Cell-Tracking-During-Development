@@ -1,6 +1,7 @@
 import pytest
 
 from scripts.analyze_official_fork_outcomes import (
+    graph_edge_pairs,
     parse_candidate_spec,
     summarize_outcomes,
 )
@@ -16,6 +17,18 @@ def test_parse_candidate_spec():
 def test_parse_candidate_spec_rejects_missing_separator():
     with pytest.raises(ValueError, match="NAME=PATH"):
         parse_candidate_spec("/tmp/candidate")
+
+
+@pytest.mark.parametrize("as_method", [False, True])
+def test_graph_edge_pairs_accepts_property_or_method(as_method):
+    class Graph:
+        pass
+
+    graph = Graph()
+    edges = [[1, 2], [3, 4]]
+    graph.edge_list = (lambda: edges) if as_method else edges
+
+    assert graph_edge_pairs(graph) == {(1, 2), (3, 4)}
 
 
 def test_summarize_outcomes_counts_embryos():

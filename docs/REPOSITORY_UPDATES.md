@@ -446,3 +446,13 @@
   summaries.
 - Reports and logs remain outside Git.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U039 - Support Callable Tracksdata Edge Lists
+
+- Time: 2026-07-24 14:14 CST.
+- S045a stopped on its first clip because this tracksdata build exposes
+  `edge_list` as a method rather than an iterable property; no report was
+  written.
+- Added one compatibility helper for both API forms plus parameterized
+  regression coverage.
+- Server source changes: none; execution requires `git pull --ff-only`.

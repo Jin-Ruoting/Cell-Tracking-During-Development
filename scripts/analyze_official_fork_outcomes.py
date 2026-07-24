@@ -41,6 +41,15 @@ def load_tracksdata_graph(path: Path):
     return loaded[0] if isinstance(loaded, tuple) else loaded
 
 
+def graph_edge_pairs(graph) -> set[tuple[int, int]]:
+    value = graph.edge_list
+    edge_list = value() if callable(value) else value
+    return {
+        (int(source_id), int(target_id))
+        for source_id, target_id in edge_list
+    }
+
+
 def summarize_outcomes(rows: list[dict[str, object]]) -> dict[str, object]:
     counts = Counter(str(row["outcome"]) for row in rows)
     return {
@@ -108,7 +117,7 @@ def analyze(
                 raise FileNotFoundError(candidate_path)
             candidate_graph = load_tracksdata_graph(candidate_path)
             added_edges = sorted(
-                set(map(tuple, candidate_graph.edge_list)) - baseline_edges
+                graph_edge_pairs(candidate_graph) - baseline_edges
             )
             division_scores = score_divisions(
                 candidate_graph,
