@@ -305,3 +305,15 @@
 - Kept the server environment, scorer commit, metric logic, and experiment
   inputs unchanged.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U028 - Add Division Recoverability Audit
+
+- Time: 2026-07-24 13:14 CST.
+- Added an oracle diagnostic that matches predicted and annotated nodes within
+  the official 7 micrometre radius, then measures whether each real division's
+  parent and two daughters are present and can form a merge-free direct fork.
+- The audit is training-only and never exports ground-truth coordinates or
+  choices into a test submission.
+- Added three synthetic tests for an addable fork, a conflicting second parent,
+  and a missing daughter detection.
+- Server source changes: none; execution requires `git pull --ff-only`.
