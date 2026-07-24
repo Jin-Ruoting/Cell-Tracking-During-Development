@@ -839,9 +839,15 @@ def main() -> None:
             thresholds,
         )
         write_report(report_path, report)
+        baseline_recall = dataset_result["baseline_node_recall"]
+        baseline_recall_text = (
+            f"{float(baseline_recall):.4f}"
+            if baseline_recall is not None
+            else "n/a"
+        )
         print(
             f"[{dataset_index:02d}/{len(baseline_paths):02d}] {dataset} "
-            f"baseline_recall={dataset_result['baseline_node_recall']:.4f} "
+            f"baseline_recall={baseline_recall_text} "
             f"missing={dataset_result['baseline_missing_gt']}",
             flush=True,
         )
