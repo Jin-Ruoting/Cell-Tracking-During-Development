@@ -35,6 +35,7 @@ SECONDARY_WEIGHT_SHA256 = (
 PATCH_CELL_INDEX = 9
 PATCH_END_MARKER = "\ndef list_test_stems() -> list[str]:\n"
 VARIANTS = ("primary", "secondary", "blend")
+LINK_MODES = ("raw", "calibrated", "adaptive", "low_margin_consensus")
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,6 +63,16 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=1.575,
     )
+    parser.add_argument("--blend-edge-weight", type=float, default=0.15)
+    parser.add_argument("--blend-detection-weight", type=float, default=0.65)
+    parser.add_argument(
+        "--blend-link-mode",
+        choices=LINK_MODES,
+        default="low_margin_consensus",
+    )
+    parser.add_argument("--blend-mix-temperature", type=float, default=1.0)
+    parser.add_argument("--blend-low-margin-max", type=float, default=0.35)
+    parser.add_argument("--blend-edge-threshold", type=float, default=0.48)
     parser.add_argument(
         "--expected-reference-sha256",
         default=REFERENCE_NOTEBOOK_SHA256,
@@ -187,12 +198,22 @@ def variant_environment(
                 "BIOHUB_SECONDARY_WEIGHTS": str(
                     args.secondary_weights.resolve()
                 ),
-                "BIOHUB_SECONDARY_EDGE_WEIGHT": "0.15",
-                "BIOHUB_SECONDARY_DETECTION_WEIGHT": "0.65",
-                "BIOHUB_SECONDARY_LINK_MODE": "low_margin_consensus",
-                "BIOHUB_SECONDARY_MIX_TEMPERATURE": "1",
-                "BIOHUB_SECONDARY_LOW_MARGIN_MAX": "0.35",
-                "BIOHUB_DUAL_SEED_EDGE_THRESHOLD": "0.48",
+                "BIOHUB_SECONDARY_EDGE_WEIGHT": str(
+                    args.blend_edge_weight
+                ),
+                "BIOHUB_SECONDARY_DETECTION_WEIGHT": str(
+                    args.blend_detection_weight
+                ),
+                "BIOHUB_SECONDARY_LINK_MODE": args.blend_link_mode,
+                "BIOHUB_SECONDARY_MIX_TEMPERATURE": str(
+                    args.blend_mix_temperature
+                ),
+                "BIOHUB_SECONDARY_LOW_MARGIN_MAX": str(
+                    args.blend_low_margin_max
+                ),
+                "BIOHUB_DUAL_SEED_EDGE_THRESHOLD": str(
+                    args.blend_edge_threshold
+                ),
             }
         )
     return env
@@ -286,6 +307,16 @@ def main() -> None:
         raise ValueError("Duplicate variants are not allowed")
     if len(args.gpus) != len(args.variants):
         raise ValueError("--gpus must have one entry per variant")
+    if not 0.0 < args.blend_edge_weight < 1.0:
+        raise ValueError("--blend-edge-weight must be in (0, 1)")
+    if not 0.0 <= args.blend_detection_weight < 1.0:
+        raise ValueError("--blend-detection-weight must be in [0, 1)")
+    if not 0.5 <= args.blend_mix_temperature <= 2.0:
+        raise ValueError("--blend-mix-temperature must be in [0.5, 2]")
+    if not 0.0 < args.blend_low_margin_max <= 1.0:
+        raise ValueError("--blend-low-margin-max must be in (0, 1]")
+    if not 0.0 < args.blend_edge_threshold < 1.0:
+        raise ValueError("--blend-edge-threshold must be in (0, 1)")
     if args.output_dir.exists():
         raise FileExistsError(f"Refusing to overwrite {args.output_dir}")
 
@@ -412,6 +443,14 @@ def main() -> None:
         "datasets": datasets,
         "det_threshold": args.det_threshold,
         "ilp_disappearance_weight": args.ilp_disappearance_weight,
+        "blend": {
+            "edge_weight": args.blend_edge_weight,
+            "detection_weight": args.blend_detection_weight,
+            "link_mode": args.blend_link_mode,
+            "mix_temperature": args.blend_mix_temperature,
+            "low_margin_max": args.blend_low_margin_max,
+            "edge_threshold": args.blend_edge_threshold,
+        },
         "elapsed_seconds": time.time() - started_at,
         "results": results,
     }
