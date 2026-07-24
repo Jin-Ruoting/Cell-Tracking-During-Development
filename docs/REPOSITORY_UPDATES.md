@@ -317,3 +317,19 @@
 - Added three synthetic tests for an addable fork, a conflicting second parent,
   and a missing daughter detection.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U029 - Record E005 Completion and Scope Project Tests
+
+- Time: 2026-07-24 13:17 CST.
+- Recorded the successful isolated Python 3.11 runtime, pinned official scorer,
+  all-training division geometry, and official scores for both E001's final CSV
+  and its raw ILP GEFF graphs.
+- Recorded the corrected inference preflight, training-only recoverability
+  result, and the strict exclusion of the four visible-test labels from tuning.
+- Distinguished 46 third-party collection errors under ignored `Dataset/`
+  dependency trees from the passing project suite.
+- Scoped the E005 runner to `python -m pytest -q tests` so later runtime and
+  scorer installations cannot be collected as project tests.
+- Generated logs, reports, runtimes, scorer clones, predictions, and GEFF files
+  remain outside Git.
+- Server source changes: none; execution requires `git pull --ff-only`.

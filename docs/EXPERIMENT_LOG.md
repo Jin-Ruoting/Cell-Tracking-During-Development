@@ -581,3 +581,78 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `s033_e005_launch_20260724.log`, and
   `s033_e005_metric_baseline_20260724.log`.
 - Source edits on server: none.
+
+## S034 - E005b Official Runtime and Metric Completion
+
+- Time: 2026-07-24 13:07-13:08 CST.
+- Fast-forwarded the clean server checkout to `fdedb77`, which pins the
+  isolated Python 3.11 runtime to `zarr==3.1.6`.
+- Launched the corrected runner in retained `screen Kaggle` window
+  `e005-metric2`; the failed `e005-metric` window was retained for provenance.
+- All 20 focused project tests passed. The isolated runtime was built under
+  ignored `Dataset/runtime-py311`, and the official scorer was pinned at
+  `075fc5f5a52d11077f9dc2b074644618f26939e2`.
+- Across all 199 annotated clips, the audit found 151 true divisions in 87
+  clips: 26 in `44b6` and 125 in `6bba`. Median parent-to-child and sister
+  distances were `5.745` and `10.570` micrometres, respectively.
+- Official scoring of E001's final fixed-eight CSV returned `0.8789`:
+  adjusted edge Jaccard `0.8789`, division Jaccard `0.0000`
+  (`TP=0, FP=6, FN=7`), and node recall `0.9763`.
+- Completion marker:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s033_e005_metric_baseline_20260724b.done`.
+- Raw log and geometry report:
+  `s033_e005_metric_baseline_20260724b.log` and
+  `s033_ground_truth_divisions_20260724b.json`, both under server `logs/`.
+- Source edits on server: none.
+
+## S035-S038 - Inference Preflight and Artifact Inventory
+
+- Time: 2026-07-24 13:09-13:10 CST.
+- The first preflight expanded local `$PWD` before SSH execution, so the remote
+  `PYTHONPATH` pointed at the wrong machine and imports failed. No inference or
+  source edit occurred.
+- The corrected preflight used absolute server paths. It verified the isolated
+  runtime imports, enumerated the prediction CLI, and found the expected
+  `edge_predictor_best.pth` checkpoint.
+- The annotated corpus contains divisions in 21 of 71 `44b6` clips and 66 of
+  128 `6bba` clips. The four visible-test IDs remain excluded from all tuning
+  even though duplicate-named training labels exist.
+- Inventoried E001's raw per-clip GEFF outputs separately from its final CSV so
+  raw model graphs can be scored and augmented without changing the server
+  checkout.
+- Raw logs:
+  `s035_e005_inference_preflight_20260724.log`,
+  `s036_e005_inference_preflight_fixed_20260724.log`,
+  `s037_e005_division_dataset_selection_20260724.log`, and
+  `s038_e005_e001_artifact_inventory_20260724.log`, all under server `logs/`.
+- Source edits on server: none.
+
+## S039-S040 - Raw Graph Score and Division Recoverability
+
+- Time: 2026-07-24 13:11-13:14 CST.
+- Official scoring of the eight raw E001 ILP GEFFs returned `0.8951`:
+  adjusted edge Jaccard `0.8951`, division Jaccard `0.0000`
+  (`TP=0, FP=0, FN=7`), and node recall `0.9844`.
+- Compared with the final fixed-eight CSV, notebook post-processing created six
+  false division forks and reduced this offline official score. The public test
+  distribution can differ, so this is diagnostic rather than a leaderboard
+  estimate.
+- The recoverability audit found all three matched nodes for six of seven true
+  divisions. Three of seven could accept the missing direct fork without
+  merging tracks; none was already a complete fork.
+- By embryo, `44b6` had one detected and addable event out of one; `6bba` had
+  five detected events and two addable events out of six.
+- Restricting interpretation to the four non-visible tuning clips leaves four
+  true divisions and two directly addable forks. This small oracle sample
+  establishes non-zero headroom but is insufficient for threshold selection.
+- A repository-root `pytest` invocation recursed into ignored dependency and
+  scorer trees under `Dataset/`, collecting their third-party tests and
+  reporting 46 missing optional-test-dependency errors. The project test suite
+  itself did not regress; future server checks are explicitly scoped to
+  `python -m pytest -q tests`.
+- Reports:
+  `s039_e005_raw_fixed8_official_score_20260724.log`,
+  `s040_e005_raw_fixed8_recoverability_20260724.log`, and
+  `s040_e005_raw_fixed8_recoverability_20260724.json`, all under server
+  `logs/`.
+- Source edits on server: none.

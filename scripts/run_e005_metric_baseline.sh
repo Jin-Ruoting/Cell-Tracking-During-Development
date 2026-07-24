@@ -28,7 +28,7 @@ cd "$REPO_DIR"
 git status --short --branch
 git rev-parse HEAD
 
-python -m pytest -q
+python -m pytest -q tests
 bash scripts/bootstrap_server_runtime.sh
 python scripts/analyze_ground_truth_divisions.py \
   "$GROUND_TRUTH_DIR" \
