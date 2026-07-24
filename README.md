@@ -33,4 +33,5 @@ See [NOTICE.md](NOTICE.md) before reusing the notebook.
 - `kaggle/audit_deepcenter_rescue.py`: sparse-label detector-complement audit.
 - `kaggle/run_dual_seed_control.py`: pinned independent-seed inference control.
 - `kaggle/audit_hoct_rerank.py`: pinned HOCT edge-ranking compatibility audit.
+- `kaggle/audit_e000_error_budget.py`: official-matcher error-budget audit.
 - `NOTICE.md`: attribution and reuse notice.
