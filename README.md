@@ -28,4 +28,5 @@ See [NOTICE.md](NOTICE.md) before reusing the notebook.
 
 - `kaggle/biohub_clean_baseline.ipynb`: complete executable notebook.
 - `kaggle/kernel-metadata.json`: Kaggle kernel configuration.
+- `kaggle/validate_e006_postprocess.py`: offline controlled-variant validator.
 - `NOTICE.md`: attribution and reuse notice.
