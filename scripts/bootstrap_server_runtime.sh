@@ -32,7 +32,7 @@ python -m pip install \
   "$GEFF_SPEC_WHEEL" \
   "$ILPY_WHEEL" \
   "numcodecs==0.15.1" \
-  "zarr==3.2.1" \
+  "zarr==3.1.6" \
   "pyscipopt==6.2.1"
 
 PYTHONPATH="$RUNTIME_DIR${PYTHONPATH:+:$PYTHONPATH}" python - <<'PY'

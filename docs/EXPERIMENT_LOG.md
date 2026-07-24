@@ -560,3 +560,24 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `0.92`.
 - Raw logs `s027` through `s031` are under server `logs/`.
 - Source edits on server: none.
+
+## S032-S033 - E005 Baseline Launch and Runtime Pin Failure
+
+- Time: 2026-07-24 12:59-13:03 CST.
+- Fast-forwarded the clean server checkout from `5bf8c40` through `54c8c1c`
+  and then to runner commit `2e476a7`; no server source was edited.
+- Launched the versioned E005 baseline runner in retained `screen Kaggle`
+  window `e005-metric`.
+- All 20 server tests passed in 13.97 seconds.
+- Dependency resolution stopped before installation because `zarr==3.2.1`
+  requires Python 3.12, while the required `Kaggle` environment is Python
+  3.11.15. Pip reported `zarr` 3.1.6 as the newest compatible release.
+- No division analysis or official scoring ran, and no completion marker was
+  created. The isolated runtime did not receive a partial package install.
+- Corrective action: pin `zarr==3.1.6`, retain `numcodecs==0.15.1`, and rerun
+  under a new run ID.
+- Raw logs:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s032_goal092_pull_and_preflight_20260724.log`,
+  `s033_e005_launch_20260724.log`, and
+  `s033_e005_metric_baseline_20260724.log`.
+- Source edits on server: none.

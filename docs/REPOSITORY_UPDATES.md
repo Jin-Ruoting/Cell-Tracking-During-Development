@@ -294,3 +294,14 @@
 - Runtime artifacts, JSON reports, completion markers, converted GEFFs, and raw
   logs remain outside Git.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U027 - Pin the Python 3.11 Zarr Runtime
+
+- Time: 2026-07-24 13:04 CST.
+- Recorded the first E005 runner's dependency-resolution failure before any
+  package installation or metric execution.
+- Replaced the incompatible `zarr==3.2.1` pin with `zarr==3.1.6`, the newest
+  release pip confirmed for Python 3.11.
+- Kept the server environment, scorer commit, metric logic, and experiment
+  inputs unchanged.
+- Server source changes: none; execution requires `git pull --ff-only`.
