@@ -1,0 +1,46 @@
+diff --git a/scripts/predict_unet_transformer.py b/scripts/predict_unet_transformer.py
+index 2de6891..0ff1ce3 100755
+--- a/scripts/predict_unet_transformer.py
++++ b/scripts/predict_unet_transformer.py
+@@ -382,16 +382,36 @@ def predict_dataset(
+         # the data is highly anisotropic (Z resolution ~4x coarser than XY),
+         # so Z-flips would produce out-of-distribution inputs.
+         if cfg.det_tta:
+-            tta_flips = [(-1,), (-2,), (-2, -1)]
+-            for dims in tta_flips:
++            _nv = 1
++            for dims in [(-1,), (-2,), (-2, -1)]:
+                 imgs_flip = imgs.flip(dims)
+                 _, det_flip = model.encode(imgs_flip)
+                 for f in range(W):
+                     det_logits[f] = det_logits[f] + det_flip[f].flip(dims)
+                 del imgs_flip, det_flip
++                _nv += 1
++            for _k in (1, 3):
++                imgs_rot = torch.rot90(imgs, _k, dims=(-2, -1))
++                _, det_rot = model.encode(imgs_rot)
++                for f in range(W):
++                    det_logits[f] = det_logits[f] + torch.rot90(
++                        det_rot[f], -_k, dims=(-2, -1)
++                    )
++                del imgs_rot, det_rot
++                _nv += 1
++            imgs_t = imgs.transpose(-1, -2)
++            _, det_t = model.encode(imgs_t)
+             for f in range(W):
+-                det_logits[f] = det_logits[f] / 4
++                det_logits[f] = det_logits[f] + det_t[f].transpose(-1, -2)
++            del imgs_t, det_t
++            _nv += 1
++            imgs_at = torch.rot90(imgs, 1, dims=(-2, -1)).transpose(-1, -2)
++            _, det_at = model.encode(imgs_at)
++            for f in range(W):
++                det_logits[f] = det_logits[f] + torch.rot90(
++                    det_at[f].transpose(-1, -2), -1, dims=(-2, -1)
++                )
++            del imgs_at, det_at
++            _nv += 1
++            for f in range(W):
++                det_logits[f] = det_logits[f] / _nv
+ 
+         del imgs

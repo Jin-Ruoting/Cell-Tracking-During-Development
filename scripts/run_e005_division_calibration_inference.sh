@@ -14,6 +14,8 @@ WEIGHTS="${BIOHUB_WEIGHTS:-${DATA_ROOT}/support-pack/weights/unet_transformer/sp
 WORK_DIR="${BIOHUB_E005_CALIBRATION_WORK_DIR:-/tmp/biohub_e005_divcal_${RUN_ID}}"
 POSITIVE_LIMIT="${BIOHUB_E005_CALIBRATION_POSITIVE_LIMIT:-16}"
 EXCLUDE_MANIFEST="${BIOHUB_E005_EXCLUDE_MANIFEST:-}"
+ILP_DISAPPEARANCE_WEIGHT="${BIOHUB_E005_ILP_DISAPPEARANCE_WEIGHT:-1.5}"
+SPATIAL_D4_TTA="${BIOHUB_E005_SPATIAL_D4_TTA:-0}"
 LOG_PATH="${LOG_DIR}/s041_e005_division_calibration_inference_${RUN_ID}.log"
 DONE_PATH="${LOG_DIR}/s041_e005_division_calibration_inference_${RUN_ID}.done"
 
@@ -33,6 +35,8 @@ printf 'repo=%s\n' "$REPO_DIR"
 printf 'work_dir=%s\n' "$WORK_DIR"
 printf 'positive_limit_per_embryo=%s\n' "$POSITIVE_LIMIT"
 printf 'exclude_manifest=%s\n' "${EXCLUDE_MANIFEST:-none}"
+printf 'ilp_disappearance_weight=%s\n' "$ILP_DISAPPEARANCE_WEIGHT"
+printf 'spatial_d4_tta=%s\n' "$SPATIAL_D4_TTA"
 
 cd "$REPO_DIR"
 git status --short --branch
@@ -56,6 +60,10 @@ cp -a "$SUPPORT_REPO" "$WORK_DIR/repo0"
 cp -a "$SUPPORT_REPO" "$WORK_DIR/repo1"
 patch -d "$WORK_DIR/repo0" -p1 < "$REPO_DIR/patches/export_preilp_graphs.patch"
 patch -d "$WORK_DIR/repo1" -p1 < "$REPO_DIR/patches/export_preilp_graphs.patch"
+if [[ "$SPATIAL_D4_TTA" != "0" ]]; then
+  patch -d "$WORK_DIR/repo0" -p1 < "$REPO_DIR/patches/spatial_d4_tta.patch"
+  patch -d "$WORK_DIR/repo1" -p1 < "$REPO_DIR/patches/spatial_d4_tta.patch"
+fi
 
 split_args=()
 for dataset in "${VISIBLE_TEST_IDS[@]}"; do
@@ -95,7 +103,7 @@ run_shard() {
       --use-ilp \
       --ilp-edge-weight -1.0 \
       --ilp-appearance-weight 0.0 \
-      --ilp-disappearance-weight 1.5 \
+      --ilp-disappearance-weight "$ILP_DISAPPEARANCE_WEIGHT" \
       --ilp-division-weight 1.0
     cp -a \
       "$copy/predictions/e005_gpu${gpu}/unet_transformer/split_0/." \
