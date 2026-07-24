@@ -98,6 +98,49 @@ Experiment order:
 4. E006/E007: consider consensus pseudo-labels or temporal affinity only after
    the lower-cost controls have been evaluated across both embryos.
 
+## Patched Division Frontier
+
+Sources:
+
+- [Division Metric exploit and patch, topic 727154](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development/discussion/727154)
+- [COMPLETED: Rescore Underway, topic 728324](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development/discussion/728324)
+- [Score locally and why a clean prediction can exceed 1.0, topic 728300](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development/discussion/728300)
+- [Post-patch 0.91+ frontier, topic 728551](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development/discussion/728551)
+- [Official metric specification](https://github.com/royerlab/kaggle-cell-tracking-competition/blob/075fc5f5a52d11077f9dc2b074644618f26939e2/metrics.md)
+
+Kaggle staff reported the rescore complete. The patched official metric requires
+a local, directed parent-to-two-daughter topology within the division window;
+weakly connected hubs and remote fake forks no longer qualify. The score remains
+`adjusted_edge_jaccard + 0.1 * division_jaccard`.
+
+A participant reports that common post-patch threshold, TTA, gap-closing, and
+ILP variations plateau around adjusted edge Jaccard `0.90`-`0.91`, while the
+leading public scores reach `0.923`-`0.931`. The same thread asks whether that
+gap comes from a genuinely stronger edge model or division Jaccard around
+`0.15`-`0.20`; it does not provide verified decomposition.
+
+Local evidence:
+
+- Kaggle's score-sorted public kernels contain many pre-patch exploit notebooks,
+  so ordering alone is not promotion evidence.
+- Pilkwang Kim's legitimate dual-seed confidence router was inspected and
+  independently graph-audited. Its Kaggle page reports Public Score `0.909`,
+  so a second temporal seed alone does not meet the current target.
+- Xiaolei Lian's `mix-divaug` notebook contains an explicitly labelled
+  negative-time, out-of-volume hub/fork exploit. It is excluded.
+- The project pins the current official scorer commit
+  `075fc5f5a52d11077f9dc2b074644618f26939e2` before evaluating E005.
+
+E005 promotion gates:
+
+1. Derive candidate rules or learned features only from training clips.
+2. Use holdouts from both `44b6` and `6bba`, excluding all visible-test IDs.
+3. Score edge and division TP/FP/FN with the current official patched code.
+4. Require a projected combined gain of at least `+0.013`, valid coordinates,
+   and no material adjusted-edge regression before spending a submission.
+5. Never add negative-time nodes, out-of-volume nodes, artificial graph hubs,
+   remote forks, or graph structures intended only to manipulate the metric.
+
 ## Excluded Paths
 
 Discussion branches that rely on duplicated trajectories, artificial graph

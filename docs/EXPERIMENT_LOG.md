@@ -495,3 +495,68 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 - `screen -ls` reported one detached session, `Kaggle`; it was retained.
 - This closure record is the only change after the pre-closure audit. After
   push, it is fast-forwarded to the server and the same invariants are rechecked.
+
+## S021 - Kernel Status and Goal Reopen
+
+- Time: 2026-07-24 12:42 CST.
+- Replaced non-TTY `ssh ... bash -ic` polling with `ssh -tt ... bash -ic`.
+  This removes the misleading job-control warnings; they were shell warnings,
+  not Kaggle failures.
+- Kernel `buaaauto/biohub-clean-baseline-no-metric-exploit` had moved from
+  `KernelWorkerStatus.RUNNING` to `KernelWorkerStatus.COMPLETE`.
+- Submission `54923913` remained complete at Public Score `0.908`.
+- Server and local repository remained clean at commit
+  `5bf8c40ac9a7593556d541858b3a77c0ead2316a`.
+- `screen -ls` showed exactly one detached session, `Kaggle`; it was retained.
+- Raw log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s021_goal092_refresh_20260724.log`.
+- Source edits on server: none.
+
+## S022-S026 - Post-Rescore Public Route Audit
+
+- Time: 2026-07-24 12:42-12:51 CST.
+- Downloaded the full post-rescore leaderboard and listed 200 public kernels by
+  votes, recency, and Kaggle score order.
+- The 12:42 leaderboard top was `0.931`, followed by `0.929` and `0.923`;
+  the large public cluster remained at `0.908`.
+- Pulled ten public candidate notebooks into server `/tmp`, never into Git.
+- Downloaded and audited the output of Pilkwang Kim's dual-seed confidence
+  router. It ran successfully in 13m56s on two T4 GPUs and emitted 125,478
+  nodes, 121,203 edges, and 351 division-like sources. Its public Kaggle page
+  reports score `0.909`, so it is not a submission candidate.
+- The public dual-seed CSV SHA256 is
+  `1a363b983ca1dfd516dc1715c9d43b101574ae1a2d2971dd0aaf93567ee201df`.
+  Its structure is otherwise valid, but the local bounds audit found one
+  rounded `z=64` node for a depth-64 volume. This output was not submitted.
+- Inspected `biohub-ct-mix-divaug`; its final cell explicitly adds
+  negative-time, out-of-volume hub/fork structures and labels the operation a
+  metric exploit. The path is rejected.
+- Raw logs:
+  `s022_goal092_leaderboard_kernels_20260724.log`,
+  `s023_goal092_pull_public_kernels_20260724.log`,
+  `s024_goal092_public_outputs_20260724.log`,
+  `s025_goal092_public_candidate_audit_20260724.log`, and
+  `s026_goal092_kernels_by_score_20260724.log`, all under server `logs/`.
+- Source edits on server: none.
+
+## S027-S031 - Official Scorer Runtime Audit
+
+- Time: 2026-07-24 12:53-12:56 CST.
+- The support pack contains the 400-epoch primary weight with expected SHA256
+  `12f6881ee3620a831697ca098ff8f48e687a24225f4e048b538deec3562fe771`
+  and offline Python 3.12 wheels.
+- The required server environment is Python 3.11.15 and initially lacks
+  `tracksdata`, `geff`, `zarr`, `blosc2`, `pyscipopt`, `ilpy`, and `polars`.
+- A pip dry-run confirmed compatible Python 3.11 wheels are available for the
+  binary dependencies, including PySCIPOpt 6.2.1.
+- Verified the official scorer `main` commit is
+  `075fc5f5a52d11077f9dc2b074644618f26939e2`.
+- The first full-leaderboard parser used API-style lowercase field names and
+  failed with `KeyError: 'teamName'`; no experiment result was produced. The
+  archive header was inspected, and the corrected parser used
+  `Rank,TeamId,TeamName,LastSubmissionDate,Score,...`.
+- Corrected exact snapshot: 1,579 teams, our rank 102 at `0.908`, strict
+  top-10% cutoff rank 157 at `0.908`, and only three teams strictly above
+  `0.92`.
+- Raw logs `s027` through `s031` are under server `logs/`.
+- Source edits on server: none.

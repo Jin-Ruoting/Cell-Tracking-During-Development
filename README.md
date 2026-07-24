@@ -4,10 +4,11 @@ Reproducible experiments for the Kaggle research competition
 [Biohub - Cell Tracking During Development](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development).
 
 The project achieved a clean top-10% public leaderboard result without metric
-exploits on 2026-07-24: E000 scored `0.908` and ranked 78 of 1,566 teams,
-approximately top 4.98%. The repository keeps source code and experiment records
-only. Competition data, model artifacts, notebook outputs, submissions, and
-server logs are excluded.
+exploits on 2026-07-24. The active objective is now a public score strictly
+greater than `0.92`. In the 12:42 CST snapshot, E000 remained at `0.908` and
+ranked 102 of 1,579 teams; only three teams were above `0.92`. The repository
+keeps source code and experiment records only. Competition data, model
+artifacts, notebook outputs, submissions, and server logs are excluded.
 
 ## Current Experiments
 
@@ -27,6 +28,13 @@ The repository also reproduces the discussion-reported frozen frames directly
 from image content. A clean zero-motion relinking sweep was evaluated on
 training holdouts disjoint from the visible test IDs; it produced no gain and
 was rejected rather than submitted.
+
+Post-rescore public methods based on detector thresholds, gap closing, or a
+second temporal seed remain around `0.908`-`0.909`. The next promotion path
+therefore evaluates real cell-division recovery with the official patched
+scorer. The repository includes a ground-truth division geometry audit and
+pinned server-runtime/scorer runners; metric exploits and visible-test labels
+remain excluded.
 
 See [NOTICE.md](NOTICE.md) before reusing the notebook.
 

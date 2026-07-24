@@ -2,12 +2,14 @@
 
 ## Objective
 
-Reach the top 10% of the Biohub public leaderboard with a legitimate,
-reproducible pipeline, then protect against public/private leaderboard shift by
-validating across both training embryos.
+Reach a Biohub public leaderboard score strictly greater than `0.92` with a
+legitimate, reproducible pipeline, then protect against public/private
+leaderboard shift by validating across both training embryos.
 
-Status: achieved on 2026-07-24. E000 scored `0.908` and ranked 78 of 1,566
-teams, approximately top 4.98%.
+The earlier top-10% goal was achieved on 2026-07-24. The current 12:42 CST
+snapshot has 1,579 teams: E000 scores `0.908` at rank 102, while only scores
+`0.931`, `0.929`, and `0.923` are strictly above `0.92`. A promoted candidate
+must therefore target at least the displayed score `0.921`, not `0.920`.
 
 ## Competition Facts
 
@@ -48,9 +50,16 @@ coordinates and graph edges.
 | E002 | Tune detection threshold | Detection was the strongest public lever | Both embryos, fixed scorer |
 | E003 | Freeze-aware relinking | Zero-motion LAP sweep rejected: no disjoint-holdout gain | Detect duplicates from images, no schedule memorization |
 | E004 | Motion/intensity LAP cost | Reduce dense-region track swaps | Component and edge FP controls |
-| E005 | Conservative division calibration | Recover the weighted division term | Patched scorer only |
+| E005 | Supervised conservative division recovery | Recover at least `+0.013` without sacrificing the edge term | Current patched scorer, embryo-disjoint promotion |
 | E006 | Cross-embryo pseudo-label ensemble | Improve sparse supervision | No hidden-test probing |
 | E007 | Detector ensemble or retraining | Improve embryo robustness | Embryo-disjoint promotion gate |
+
+E005 is now the priority. The strongest inspected public dual-seed router scores
+only `0.909`, and the patched discussion frontier reports edge-only approaches
+plateauing around `0.90`-`0.91`. Since the division term is weighted by `0.1`,
+a division Jaccard near `0.13` can in principle close the current gap if the
+adjusted edge score is preserved. This is a hypothesis until the official
+patched scorer confirms it on holdouts from both embryos.
 
 ## Evidence Policy
 

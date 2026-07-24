@@ -265,3 +265,20 @@
   push, the server is fast-forwarded once more and the same invariants are
   rechecked.
 - Server source changes: none.
+
+## U025 - Open the Strict 0.92 Goal and Pin Patched Scoring
+
+- Time: 2026-07-24 13:00 CST.
+- Reopened the project objective as a public score strictly greater than
+  `0.92` and recorded the exact 12:42 leaderboard snapshot.
+- Reviewed current Discussion posts, score-sorted public kernels, and ten
+  public candidate notebooks. Rejected both an explicit division exploit and a
+  legal dual-seed method whose verified public score is only `0.909`.
+- Added a dependency-light annotated-division geometry analyzer with three
+  focused tests.
+- Added versioned server runners to build an isolated Python 3.11 dependency
+  target under ignored `Dataset/` and execute official scorer commit
+  `075fc5f5a52d11077f9dc2b074644618f26939e2`.
+- Twenty focused tests, Bash syntax checks, Python compilation, and whitespace
+  validation pass locally.
+- Server source changes: none; execution requires `git pull --ff-only`.
