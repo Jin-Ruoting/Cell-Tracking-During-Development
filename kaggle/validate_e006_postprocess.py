@@ -153,6 +153,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--skip-score", action="store_true")
     parser.add_argument("--e000-only", action="store_true")
+    parser.add_argument(
+        "--max-outdegree",
+        type=int,
+        default=2,
+        help=(
+            "Strict graph-audit limit. Raise only for diagnostic scoring of "
+            "non-binary candidate outputs."
+        ),
+    )
     parser.add_argument("--calibrated-rule-sweep", action="store_true")
     parser.add_argument("--postprocessed-rule-sweep", action="store_true")
     parser.add_argument("--deepcenter-control", action="store_true")
@@ -457,6 +466,7 @@ def audit_graph(
     dataset: str,
     nodes: dict[int, dict[str, object]],
     edges: list[dict[str, object]],
+    max_outdegree: int = 2,
 ) -> dict[str, int]:
     edge_pairs: set[tuple[int, int]] = set()
     indegree: dict[int, int] = {}
@@ -479,7 +489,12 @@ def audit_graph(
         outdegree[source_id] = outdegree.get(source_id, 0) + 1
     maximum_indegree = max(indegree.values(), default=0)
     maximum_outdegree = max(outdegree.values(), default=0)
-    if dangling or nonconsecutive or maximum_indegree > 1 or maximum_outdegree > 2:
+    if (
+        dangling
+        or nonconsecutive
+        or maximum_indegree > 1
+        or maximum_outdegree > max_outdegree
+    ):
         raise AssertionError(
             {
                 "dataset": dataset,
@@ -487,12 +502,14 @@ def audit_graph(
                 "nonconsecutive": nonconsecutive,
                 "max_indegree": maximum_indegree,
                 "max_outdegree": maximum_outdegree,
+                "allowed_max_outdegree": max_outdegree,
             }
         )
     return {
         "nodes": len(nodes),
         "edges": len(edges),
-        "division_sources": sum(count == 2 for count in outdegree.values()),
+        "division_sources": sum(count >= 2 for count in outdegree.values()),
+        "nonbinary_sources": sum(count > 2 for count in outdegree.values()),
         "max_indegree": maximum_indegree,
         "max_outdegree": maximum_outdegree,
     }
@@ -610,6 +627,8 @@ def evaluate_csv(args: argparse.Namespace, variant: str, csv_path: Path) -> str:
 
 def main() -> None:
     args = parse_args()
+    if args.max_outdegree < 2:
+        raise ValueError("--max-outdegree must be at least 2")
     if args.deepcenter_control and args.deepcenter_checkpoint is None:
         raise ValueError("--deepcenter-control requires --deepcenter-checkpoint")
     if not args.deepcenter_control and args.deepcenter_checkpoint is not None:
@@ -673,6 +692,7 @@ def main() -> None:
         "notebook": str(args.notebook.resolve()),
         "notebook_sha256": file_sha256(args.notebook),
         "e000_only": args.e000_only,
+        "max_outdegree": args.max_outdegree,
         "calibrated_rule_sweep": args.calibrated_rule_sweep,
         "postprocessed_rule_sweep": args.postprocessed_rule_sweep,
         "deepcenter_control": args.deepcenter_control,
@@ -756,7 +776,12 @@ def main() -> None:
                     edges, searched_stats = namespace[
                         "apply_searched_division_edges"
                     ](nodes, edges, selected)
-                audit = audit_graph(dataset, nodes, edges)
+                audit = audit_graph(
+                    dataset,
+                    nodes,
+                    edges,
+                    max_outdegree=args.max_outdegree,
+                )
                 row_ids[variant] = write_dataset(
                     writers[variant],
                     row_ids[variant],
