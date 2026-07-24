@@ -83,17 +83,31 @@ def select_rows(
     rows: list[dict[str, object]],
     rule: dict[str, object],
 ) -> list[dict[str, object]]:
-    selected: dict[int, dict[str, object]] = {}
-    for row in rows:
-        if not matches_rule(row, rule):
-            continue
+    qualified = [row for row in rows if matches_rule(row, rule)]
+    qualified.sort(
+        key=lambda row: (
+            int(row["candidate_rank"]),
+            -float(row["candidate_edge_probability"])
+            if row["candidate_edge_probability"] is not None
+            else 1.0,
+            float(row["midpoint_um"]),
+            float(row["parent_candidate_um"]),
+            int(row["parent_id"]),
+            int(row["candidate_child_id"]),
+        )
+    )
+    selected: list[dict[str, object]] = []
+    used_parents: set[int] = set()
+    used_candidates: set[int] = set()
+    for row in qualified:
         parent_id = int(row["parent_id"])
-        current = selected.get(parent_id)
-        if current is None or int(row["candidate_rank"]) < int(
-            current["candidate_rank"]
-        ):
-            selected[parent_id] = row
-    return [selected[parent_id] for parent_id in sorted(selected)]
+        candidate_id = int(row["candidate_child_id"])
+        if parent_id in used_parents or candidate_id in used_candidates:
+            continue
+        selected.append(row)
+        used_parents.add(parent_id)
+        used_candidates.add(candidate_id)
+    return sorted(selected, key=lambda row: int(row["parent_id"]))
 
 
 def prediction_only_rows(

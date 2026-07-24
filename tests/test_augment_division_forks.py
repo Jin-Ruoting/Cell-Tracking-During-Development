@@ -53,6 +53,28 @@ def test_select_rows_keeps_best_rank_per_parent():
     assert [row["candidate_child_id"] for row in selected] == [10, 30]
 
 
+def test_select_rows_uses_each_candidate_only_once():
+    rule = {"name": "unique", "max_candidate_rank": 1}
+    rows = [
+        _row(
+            parent_id=1,
+            candidate_child_id=10,
+            candidate_edge_probability=0.6,
+        ),
+        _row(
+            parent_id=2,
+            candidate_child_id=10,
+            candidate_edge_probability=0.8,
+        ),
+    ]
+
+    selected = select_rows(rows, rule)
+
+    assert [(row["parent_id"], row["candidate_child_id"]) for row in selected] == [
+        (2, 10)
+    ]
+
+
 def test_validate_rule_rejects_unknown_keys():
     with pytest.raises(ValueError, match="unknown"):
         validate_rule({"name": "bad", "oracle_label": True})

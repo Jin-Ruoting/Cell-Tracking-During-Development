@@ -422,3 +422,14 @@
 - Candidate GEFFs, rule reports, per-rule metric logs, and completion markers
   remain outside Git.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U037 - Enforce One-to-One Fork Candidate Assignment
+
+- Time: 2026-07-24 14:04 CST.
+- The first S044 generation attempt stopped before scoring when two parents
+  selected the same root; the immediate indegree guard prevented a merge.
+- Replaced independent per-parent selection with deterministic greedy
+  one-to-one assignment over both parent and candidate IDs.
+- Added a regression test proving that a shared candidate is assigned only to
+  the higher-confidence parent.
+- Server source changes: none; execution requires `git pull --ff-only`.

@@ -700,3 +700,29 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 - Raw log:
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s042_e005_division_weight_sweep_20260724a.log`.
 - Source edits on server: none.
+
+## S043-S044a - Candidate Audit and Merge-Guard Stop
+
+- Time: 2026-07-24 13:48-13:57 CST.
+- S043 passed all 34 project tests and analyzed all 64 paired baseline/pre-ILP
+  graphs.
+- It found 39 directly recoverable annotated divisions: 11 in `44b6` and 28
+  in `6bba`. Nineteen of the 39 missing edges were present in the saved
+  pre-ILP candidate graph.
+- All 39 oracle-recoverable events were the first prediction-only candidate
+  under the configured probability/geometry ordering. This supports a
+  rank-one conservative sweep but does not itself establish precision.
+- S044a passed all 37 then-current tests and wrote the first candidate GEFF.
+  On the second clip, two parents selected the same root. The immediate
+  indegree guard raised `ValueError` before the second edge could create a
+  merge.
+- No official score or completion marker was produced. The partial ignored
+  output was retained, and the runner window returned without exiting the
+  retained `Kaggle` screen.
+- Corrective action: require one-to-one assignment over both parent and
+  candidate IDs, add a regression test, and rerun with a new run ID.
+- Reports and raw logs:
+  `s043_e005_division_candidates_20260724a.json`,
+  `s043_e005_division_candidate_audit_20260724a.log`, and
+  `s044_e005_direct_fork_sweep_20260724a.log`, all under server `logs/`.
+- Source edits on server: none.
