@@ -13,6 +13,7 @@ RUNTIME="${BIOHUB_RUNTIME:-${DATA_ROOT}/runtime-py311}"
 WEIGHTS="${BIOHUB_WEIGHTS:-${DATA_ROOT}/support-pack/weights/unet_transformer/split_0/edge_predictor_best.pth}"
 WORK_DIR="${BIOHUB_E005_CALIBRATION_WORK_DIR:-/tmp/biohub_e005_divcal_${RUN_ID}}"
 POSITIVE_LIMIT="${BIOHUB_E005_CALIBRATION_POSITIVE_LIMIT:-16}"
+EXCLUDE_MANIFEST="${BIOHUB_E005_EXCLUDE_MANIFEST:-}"
 LOG_PATH="${LOG_DIR}/s041_e005_division_calibration_inference_${RUN_ID}.log"
 DONE_PATH="${LOG_DIR}/s041_e005_division_calibration_inference_${RUN_ID}.done"
 
@@ -31,6 +32,7 @@ printf 'started_at=%s\n' "$(date -Ins)"
 printf 'repo=%s\n' "$REPO_DIR"
 printf 'work_dir=%s\n' "$WORK_DIR"
 printf 'positive_limit_per_embryo=%s\n' "$POSITIVE_LIMIT"
+printf 'exclude_manifest=%s\n' "${EXCLUDE_MANIFEST:-none}"
 
 cd "$REPO_DIR"
 git status --short --branch
@@ -59,6 +61,12 @@ split_args=()
 for dataset in "${VISIBLE_TEST_IDS[@]}"; do
   split_args+=(--exclude "$dataset")
 done
+if [[ -n "$EXCLUDE_MANIFEST" ]]; then
+  test -f "$EXCLUDE_MANIFEST"
+  while IFS= read -r dataset; do
+    split_args+=(--exclude "$dataset")
+  done < <(jq -r '.selected[]' "$EXCLUDE_MANIFEST")
+fi
 python scripts/prepare_division_calibration_splits.py \
   "$DIVISION_REPORT" \
   "$WORK_DIR/splits" \

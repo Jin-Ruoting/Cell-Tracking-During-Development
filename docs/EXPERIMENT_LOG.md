@@ -821,3 +821,34 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `s046_e005_official_rule_search_20260724a.json` and
   `s046_e005_official_rule_search_20260724a.log` under server `logs/`.
 - Source edits on server: none.
+
+## S047 - Full Official Confirmation of Searched Rules
+
+- Time: 2026-07-24 14:30-14:38 CST.
+- Fast-forwarded the server to `06dc21e`; all 46 focused project tests passed.
+- Regenerated five complete 64-clip candidate sets from prediction-only rules
+  and scored every graph with the pinned patched scorer.
+- Confirmation results:
+
+| Rule | Added edges | Score | Adjusted edge | Division Jaccard | Division TP/FP/FN |
+|---|---:|---:|---:|---:|---:|
+| baseline | 0 | 0.9073 | 0.9073 | 0.0000 | 0/0/75 |
+| overall exact | 690 | **0.9220** | 0.9073 | **0.1461** | 13/14/62 |
+| overall rounded | 709 | **0.9220** | 0.9073 | **0.1461** | 13/14/62 |
+| robust exact | 654 | 0.9211 | 0.9074 | 0.1368 | 13/20/62 |
+| robust rounded | 796 | 0.9204 | 0.9073 | 0.1313 | 13/24/62 |
+| sister-band exact | 875 | 0.9219 | 0.9073 | 0.1461 | 13/14/62 |
+
+- The exact and rounded overall rules independently reproduce the S046
+  `0.1461` estimate and improve the full official calibration score by
+  `+0.0147`, crossing `0.92` offline without reducing the adjusted edge term.
+- This is still selection-set evidence. Promotion remains blocked until the
+  rule succeeds on a newly inferred, label-disjoint validation set from both
+  embryos.
+- Completion marker:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s044_e005_direct_fork_sweep_20260724c.done`.
+- Rule report and raw logs:
+  `s044_e005_direct_fork_sweep_20260724c.json`,
+  `s044_e005_direct_fork_sweep_20260724c.log`, and the six
+  `s044_e005_score_*_20260724c.log` files under server `logs/`.
+- Source edits on server: none.

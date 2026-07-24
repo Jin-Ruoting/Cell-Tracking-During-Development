@@ -37,7 +37,16 @@ test -f "$INFERENCE_DONE"
 test -d "$INFERENCE_DIR/baseline"
 test -d "$INFERENCE_DIR/preilp"
 test -f "$INFERENCE_DIR/splits/manifest.json"
-test "$(jq '.excluded | length' "$INFERENCE_DIR/splits/manifest.json")" -eq 4
+jq -e '
+  (
+    [
+      "44b6_0113de3b",
+      "44b6_0b24845f",
+      "6bba_05b6850b",
+      "6bba_05db0fb1"
+    ] - .excluded
+  ) | length == 0
+' "$INFERENCE_DIR/splits/manifest.json" > /dev/null
 test -f "$RULES"
 test -d "$RUNTIME"
 test -d "$SUPPORT_REPO/src"

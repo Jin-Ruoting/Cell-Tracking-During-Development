@@ -483,3 +483,15 @@
 - The existing S044 runner accepts the new config through
   `BIOHUB_E005_FORK_RULES`; no duplicate experiment implementation was added.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U042 - Support Label-Disjoint Validation Inference
+
+- Time: 2026-07-24 14:41 CST.
+- Extended the two-GPU inference runner with an optional prior-selection
+  manifest whose datasets are added to the exclusion set before constructing
+  new shards.
+- Generalized the direct-fork runner's leakage guard from exactly four
+  exclusions to requiring that all four visible-test IDs are present, allowing
+  larger disjoint validation exclusion sets.
+- Recorded the complete official confirmation of S046's five rules.
+- Server source changes: none; execution requires `git pull --ff-only`.
