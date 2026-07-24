@@ -386,3 +386,13 @@
 - Preserved the completed pre-ILP and baseline graphs for the faster direct-fork
   calibration path.
 - Server source changes: none.
+
+## U034 - Add Versioned Direct-Fork Audit Runner
+
+- Time: 2026-07-24 13:53 CST.
+- Added a runner that validates the project, requires the successful S041
+  completion marker, and extracts direct-fork candidates from all 64 paired
+  baseline/pre-ILP graphs.
+- The candidate report, raw log, and completion marker remain under ignored
+  server `logs/`.
+- Server source changes: none; execution requires `git pull --ff-only`.
