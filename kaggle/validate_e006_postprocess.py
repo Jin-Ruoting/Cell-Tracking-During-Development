@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Validate E006 on saved raw and pre-ILP GEFF graphs.
+"""Validate searched-division rules on saved raw and pre-ILP GEFF graphs.
 
 The runner loads the committed notebook as the single source of postprocessing
-and searched-division logic. It evaluates four controlled variants:
+and searched-division logic. By default it evaluates four controlled variants:
 
 * E000 postprocessing with legacy safe divisions;
 * E000 plus searched divisions;
 * E000 postprocessing without legacy safe divisions; and
 * the no-legacy-safe variant plus searched divisions.
+
+The optional calibrated sweep evaluates only rules selected on a separate
+calibration split, preserving the supplied graphs as label-disjoint validation.
 """
 
 from __future__ import annotations
@@ -36,11 +39,100 @@ CSV_COLUMNS = [
     "source_id",
     "target_id",
 ]
-VARIANTS = {
-    "e000_safe": (True, False),
-    "e006_safe_search": (True, True),
-    "e000_no_safe": (False, False),
-    "e006_no_safe_search": (False, True),
+# The hp names record calibration-set TP counts; the supplied sweep graphs stay
+# untouched until this fixed rule set is evaluated.
+CALIBRATED_RULES = {
+    "broad": {
+        "min_candidate_edge_probability": 0.0,
+        "max_candidate_rank": 1,
+        "max_parent_candidate_um": 12.0,
+        "min_parent_existing_um": 2.5,
+        "min_sister_um": 0.0,
+        "max_sister_um": 19.0,
+        "max_midpoint_um": 6.0,
+        "max_child_distance_delta_um": 9.0,
+        "min_existing_edge_probability": 0.0,
+        "min_parent_motion_um": 0.0,
+        "max_parent_motion_um": 8.0,
+    },
+    "balanced8": {
+        "min_candidate_edge_probability": 0.65,
+        "max_candidate_rank": 1,
+        "max_parent_candidate_um": 12.0,
+        "min_parent_existing_um": 2.5,
+        "min_sister_um": 8.0,
+        "max_sister_um": 13.0,
+        "max_midpoint_um": 4.0,
+        "max_child_distance_delta_um": 9.0,
+        "min_existing_edge_probability": 0.70,
+        "min_parent_motion_um": 1.0,
+        "max_parent_motion_um": 8.0,
+    },
+    "hp6": {
+        "min_candidate_edge_probability": 0.65,
+        "max_candidate_rank": 1,
+        "max_parent_candidate_um": 12.0,
+        "min_parent_existing_um": 2.5,
+        "min_sister_um": 8.0,
+        "max_sister_um": 13.0,
+        "max_midpoint_um": 4.0,
+        "max_child_distance_delta_um": 9.0,
+        "min_existing_edge_probability": 0.85,
+        "min_parent_motion_um": 1.0,
+        "max_parent_motion_um": 8.0,
+    },
+    "hp5": {
+        "min_candidate_edge_probability": 0.70,
+        "max_candidate_rank": 1,
+        "max_parent_candidate_um": 12.0,
+        "min_parent_existing_um": 3.25,
+        "min_sister_um": 8.0,
+        "max_sister_um": 13.0,
+        "max_midpoint_um": 4.0,
+        "max_child_distance_delta_um": 9.0,
+        "min_existing_edge_probability": 0.85,
+        "min_parent_motion_um": 1.0,
+        "max_parent_motion_um": 8.0,
+    },
+    "hp4": {
+        "min_candidate_edge_probability": 0.65,
+        "max_candidate_rank": 1,
+        "max_parent_candidate_um": 12.0,
+        "min_parent_existing_um": 3.25,
+        "min_sister_um": 10.0,
+        "max_sister_um": 13.0,
+        "max_midpoint_um": 4.0,
+        "max_child_distance_delta_um": 9.0,
+        "min_existing_edge_probability": 0.75,
+        "min_parent_motion_um": 1.0,
+        "max_parent_motion_um": 8.0,
+    },
+    "hp3": {
+        "min_candidate_edge_probability": 0.70,
+        "max_candidate_rank": 1,
+        "max_parent_candidate_um": 12.0,
+        "min_parent_existing_um": 2.5,
+        "min_sister_um": 10.0,
+        "max_sister_um": 13.0,
+        "max_midpoint_um": 4.0,
+        "max_child_distance_delta_um": 9.0,
+        "min_existing_edge_probability": 0.85,
+        "min_parent_motion_um": 1.0,
+        "max_parent_motion_um": 8.0,
+    },
+    "hp2": {
+        "min_candidate_edge_probability": 0.75,
+        "max_candidate_rank": 1,
+        "max_parent_candidate_um": 12.0,
+        "min_parent_existing_um": 2.5,
+        "min_sister_um": 10.0,
+        "max_sister_um": 13.0,
+        "max_midpoint_um": 3.0,
+        "max_child_distance_delta_um": 4.0,
+        "min_existing_edge_probability": 0.85,
+        "min_parent_motion_um": 1.0,
+        "max_parent_motion_um": 8.0,
+    },
 }
 
 
@@ -56,6 +148,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--scorer-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--skip-score", action="store_true")
+    parser.add_argument("--calibrated-rule-sweep", action="store_true")
     return parser.parse_args()
 
 
@@ -122,6 +215,76 @@ def load_notebook_namespace(args: argparse.Namespace) -> dict[str, object]:
     if missing:
         raise RuntimeError(f"Notebook functions missing: {missing}")
     return namespace
+
+
+def build_variant_specs(
+    namespace: dict[str, object],
+    calibrated_rule_sweep: bool,
+) -> dict[str, dict[str, object]]:
+    notebook_rule = copy.deepcopy(namespace["SEARCHED_DIVISION_RULE"])
+    notebook_rule["min_candidate_edge_probability"] = 0.0
+    specs: dict[str, dict[str, object]] = {
+        "e000_safe": {
+            "safe_divisions": True,
+            "rule": None,
+        },
+        "e006_safe_search": {
+            "safe_divisions": True,
+            "rule": notebook_rule,
+        },
+    }
+    if calibrated_rule_sweep:
+        specs.update(
+            {
+                f"e007_{name}": {
+                    "safe_divisions": True,
+                    "rule": copy.deepcopy(rule),
+                }
+                for name, rule in CALIBRATED_RULES.items()
+            }
+        )
+    else:
+        specs.update(
+            {
+                "e000_no_safe": {
+                    "safe_divisions": False,
+                    "rule": None,
+                },
+                "e006_no_safe_search": {
+                    "safe_divisions": False,
+                    "rule": copy.deepcopy(notebook_rule),
+                },
+            }
+        )
+    return specs
+
+
+def select_rule_divisions(
+    namespace: dict[str, object],
+    nodes: dict[int, dict[str, object]],
+    edges: list[dict[str, object]],
+    probabilities: dict[tuple[int, int], float],
+    rule: dict[str, object],
+) -> list[dict[str, object]]:
+    min_candidate_probability = float(
+        rule.get("min_candidate_edge_probability", 0.0)
+    )
+    notebook_rule = {
+        key: value
+        for key, value in rule.items()
+        if key != "min_candidate_edge_probability"
+    }
+    namespace["SEARCHED_DIVISION_RULE"] = notebook_rule
+    selected = namespace["select_searched_division_edges"](
+        nodes,
+        edges,
+        probabilities,
+    )
+    return [
+        row
+        for row in selected
+        if float(row["candidate_edge_probability"]) >= min_candidate_probability
+    ]
 
 
 def graph_rows(namespace: dict[str, object], path: Path):
@@ -310,6 +473,10 @@ def main() -> None:
         raise FileExistsError(f"Refusing to overwrite {args.output_dir}")
     args.output_dir.mkdir(parents=True)
     namespace = load_notebook_namespace(args)
+    variant_specs = build_variant_specs(
+        namespace,
+        args.calibrated_rule_sweep,
+    )
 
     baseline_paths = sorted(args.baseline_dir.glob("*.geff"))
     preilp_paths = {
@@ -328,7 +495,7 @@ def main() -> None:
 
     files = {
         name: (args.output_dir / f"{name}.csv").open("w", newline="")
-        for name in VARIANTS
+        for name in variant_specs
     }
     writers = {
         name: csv.DictWriter(handle, fieldnames=CSV_COLUMNS)
@@ -337,12 +504,14 @@ def main() -> None:
     for writer in writers.values():
         writer.writeheader()
 
-    row_ids = {name: 0 for name in VARIANTS}
+    row_ids = {name: 0 for name in variant_specs}
     report: dict[str, object] = {
         "notebook": str(args.notebook.resolve()),
         "notebook_sha256": file_sha256(args.notebook),
+        "calibrated_rule_sweep": args.calibrated_rule_sweep,
         "datasets": [],
-        "variants": {name: {} for name in VARIANTS},
+        "variant_specs": variant_specs,
+        "variants": {name: {} for name in variant_specs},
     }
     try:
         for index, baseline_path in enumerate(baseline_paths, start=1):
@@ -352,18 +521,20 @@ def main() -> None:
             probabilities = namespace["edge_probability_map"](
                 preilp_graph.edge_attrs().iter_rows(named=True)
             )
-            selected = namespace["select_searched_division_edges"](
-                raw_nodes,
-                raw_edges,
-                probabilities,
-            )
             report["datasets"].append(dataset)
 
             dataset_outputs = {}
             variant_snapshots = {}
-            for safe_divisions in (True, False):
+            filtered_by_safe = {}
+            for safe_divisions in sorted(
+                {
+                    bool(spec["safe_divisions"])
+                    for spec in variant_specs.values()
+                },
+                reverse=True,
+            ):
                 namespace["OUTPUT_SAFE_DIVISIONS"] = safe_divisions
-                filtered_nodes, filtered_edges, filter_stats = namespace[
+                filtered_by_safe[safe_divisions] = namespace[
                     "filter_output_graph"
                 ](
                     copy.deepcopy(raw_nodes),
@@ -371,46 +542,59 @@ def main() -> None:
                     dataset=dataset,
                     deepcenter_bundle=None,
                 )
-                for searched_divisions in (False, True):
-                    variant = next(
-                        name
-                        for name, settings in VARIANTS.items()
-                        if settings == (safe_divisions, searched_divisions)
-                    )
-                    nodes = copy.deepcopy(filtered_nodes)
-                    edges = copy.deepcopy(filtered_edges)
-                    searched_stats = {}
-                    if searched_divisions:
-                        edges, searched_stats = namespace[
-                            "apply_searched_division_edges"
-                        ](nodes, edges, selected)
-                    audit = audit_graph(dataset, nodes, edges)
-                    row_ids[variant] = write_dataset(
-                        writers[variant],
-                        row_ids[variant],
-                        dataset,
-                        nodes,
-                        edges,
-                    )
-                    dataset_outputs[variant] = {
-                        **audit,
-                        "safe_divisions_added": int(
-                            filter_stats.get("safe_divisions_added", 0)
-                        ),
-                        "searched_division_candidates": len(selected),
-                        "searched_divisions_added": int(
-                            searched_stats.get("searched_divisions_added", 0)
-                        ),
-                    }
-                    variant_snapshots[variant] = {
-                        "nodes": node_signature(nodes),
-                        "edges": edge_signature(edges),
-                    }
 
-            for safe_name, search_name in (
-                ("e000_safe", "e006_safe_search"),
-                ("e000_no_safe", "e006_no_safe_search"),
-            ):
+            for variant, spec in variant_specs.items():
+                safe_divisions = bool(spec["safe_divisions"])
+                filtered_nodes, filtered_edges, filter_stats = filtered_by_safe[
+                    safe_divisions
+                ]
+                nodes = copy.deepcopy(filtered_nodes)
+                edges = copy.deepcopy(filtered_edges)
+                selected = []
+                searched_stats = {}
+                rule = spec["rule"]
+                if rule is not None:
+                    selected = select_rule_divisions(
+                        namespace,
+                        raw_nodes,
+                        raw_edges,
+                        probabilities,
+                        rule,
+                    )
+                    edges, searched_stats = namespace[
+                        "apply_searched_division_edges"
+                    ](nodes, edges, selected)
+                audit = audit_graph(dataset, nodes, edges)
+                row_ids[variant] = write_dataset(
+                    writers[variant],
+                    row_ids[variant],
+                    dataset,
+                    nodes,
+                    edges,
+                )
+                dataset_outputs[variant] = {
+                    **audit,
+                    "safe_divisions_added": int(
+                        filter_stats.get("safe_divisions_added", 0)
+                    ),
+                    "searched_division_candidates": len(selected),
+                    "searched_divisions_added": int(
+                        searched_stats.get("searched_divisions_added", 0)
+                    ),
+                }
+                variant_snapshots[variant] = {
+                    "nodes": node_signature(nodes),
+                    "edges": edge_signature(edges),
+                }
+
+            for search_name, spec in variant_specs.items():
+                if spec["rule"] is None:
+                    continue
+                safe_name = (
+                    "e000_safe"
+                    if bool(spec["safe_divisions"])
+                    else "e000_no_safe"
+                )
                 base = dataset_outputs[safe_name]
                 searched = dataset_outputs[search_name]
                 base_snapshot = variant_snapshots[safe_name]
@@ -433,7 +617,7 @@ def main() -> None:
                         f"{dataset}: searched edge delta mismatch for {search_name}"
                     )
 
-            for variant in VARIANTS:
+            for variant in variant_specs:
                 report["variants"][variant][dataset] = dataset_outputs[variant]
             print(
                 f"[{index:02d}/{len(baseline_paths):02d}] {dataset} "
@@ -441,7 +625,7 @@ def main() -> None:
                     f"{name}=n{dataset_outputs[name]['nodes']}/"
                     f"e{dataset_outputs[name]['edges']}/"
                     f"d{dataset_outputs[name]['division_sources']}"
-                    for name in VARIANTS
+                    for name in variant_specs
                 ),
                 flush=True,
             )
@@ -450,7 +634,7 @@ def main() -> None:
             handle.close()
 
     report["outputs"] = {}
-    for variant in VARIANTS:
+    for variant in variant_specs:
         csv_path = args.output_dir / f"{variant}.csv"
         report["outputs"][variant] = {
             "path": str(csv_path),
@@ -459,7 +643,7 @@ def main() -> None:
         }
 
     if not args.skip_score:
-        for variant in VARIANTS:
+        for variant in variant_specs:
             csv_path = args.output_dir / f"{variant}.csv"
             report["outputs"][variant]["score_log"] = evaluate_csv(
                 args, variant, csv_path

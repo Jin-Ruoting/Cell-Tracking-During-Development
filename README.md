@@ -15,12 +15,13 @@ pass learned-edge, motion, and 3D geometry gates.
 
 The output is rejected if it contains dangling or nonconsecutive edges,
 multiple parents, hub-like sources, or coordinates outside the image volume.
-E006 remains an experimental candidate until its hidden output is shown to
-preserve every E000 node and edge apart from audited division additions.
+The controlled validator confirmed that E006 preserves every E000 node and
+edge apart from audited division additions.
 
-On 26 label-disjoint clips from both embryos, the searched-division rule was
-directionally positive under the same D4 inference setting. This offline result
-is not presented as a verified leaderboard score.
+On 26 label-disjoint clips from both embryos, however, E000 and the current
+E006 rule both scored `0.8827` under the pinned official scorer. E006 is
+therefore not promoted for submission. The validator also provides a fixed
+sweep of rules selected on a separate calibration split.
 
 See [NOTICE.md](NOTICE.md) before reusing the notebook.
 
