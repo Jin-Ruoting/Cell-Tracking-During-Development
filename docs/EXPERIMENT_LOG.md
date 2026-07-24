@@ -852,3 +852,37 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `s044_e005_direct_fork_sweep_20260724c.log`, and the six
   `s044_e005_score_*_20260724c.log` files under server `logs/`.
 - Source edits on server: none.
+
+## S048 - Label-Disjoint Validation
+
+- Time: 2026-07-24 14:42-14:49 CST.
+- Fast-forwarded the server to `825b927`; all 46 focused project tests passed
+  before both inference and scoring.
+- Excluded all 64 S041 selection clips plus all four visible-test IDs before
+  constructing validation shards.
+- The resulting validation set contains 13 division-positive and 13
+  edge-count-matched division-negative clips: five positive clips from the
+  remaining `44b6` pool and eight from the remaining `6bba` pool. GPU workload
+  proxies were `9,185` and `9,186`.
+- Both GPU shards completed with exactly 26 baseline and 26 pre-ILP graphs.
+- Official patched validation results:
+
+| Rule | Score | Delta vs baseline | Adjusted edge | Division Jaccard | Division TP/FP/FN |
+|---|---:|---:|---:|---:|---:|
+| baseline | 0.8963 | - | 0.8963 | 0.0000 | 0/0/21 |
+| overall exact | **0.9118** | **+0.0155** | 0.8964 | **0.1538** | 4/5/17 |
+| overall rounded | **0.9118** | **+0.0155** | 0.8964 | **0.1538** | 4/5/17 |
+| robust exact | 0.9112 | +0.0149 | 0.8964 | 0.1481 | 4/6/17 |
+| robust rounded | 0.9107 | +0.0144 | 0.8964 | 0.1429 | 4/7/17 |
+| sister-band exact | 0.9032 | +0.0069 | 0.8963 | 0.0690 | 2/8/19 |
+
+- The exact and rounded overall rules reproduce their selection-set behavior
+  on entirely unseen labels, including a `+0.0155` total-score gain and no
+  adjusted-edge loss. This exceeds the estimated `+0.013` leaderboard gap.
+- Absolute validation score is lower because this disjoint subset's baseline
+  is harder; promotion is based on the replicated delta, not its absolute
+  score.
+- Completion markers:
+  `s041_e005_division_calibration_inference_20260724v1.done` and
+  `s044_e005_direct_fork_sweep_20260724v1.done` under server `logs/`.
+- Source edits on server: none.

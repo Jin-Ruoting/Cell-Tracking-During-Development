@@ -495,3 +495,14 @@
   larger disjoint validation exclusion sets.
 - Recorded the complete official confirmation of S046's five rules.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U043 - Add Embryo-Specific Validation Scoring
+
+- Time: 2026-07-24 14:53 CST.
+- Recorded the fully label-disjoint S048 validation, where the overall exact
+  and rounded rules both improve official score by `+0.0155`.
+- Added a generic runner that creates ignored symlink subsets and scores the
+  promoted rule separately on `44b6` and `6bba`.
+- The runner refuses to overwrite its temporary output root and does not copy
+  GEFF data into Git.
+- Server source changes: none; execution requires `git pull --ff-only`.
