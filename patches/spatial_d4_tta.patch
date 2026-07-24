@@ -2,7 +2,7 @@ diff --git a/scripts/predict_unet_transformer.py b/scripts/predict_unet_transfor
 index 2de6891..0ff1ce3 100755
 --- a/scripts/predict_unet_transformer.py
 +++ b/scripts/predict_unet_transformer.py
-@@ -382,16 +382,36 @@ def predict_dataset(
+@@ -382,14 +382,38 @@ def predict_dataset(
          # the data is highly anisotropic (Z resolution ~4x coarser than XY),
          # so Z-flips would produce out-of-distribution inputs.
          if cfg.det_tta:
