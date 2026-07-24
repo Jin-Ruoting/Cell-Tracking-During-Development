@@ -1,0 +1,14 @@
+diff --git a/scripts/predict_unet_transformer.py b/scripts/predict_unet_transformer.py
+index 2de6891..1450e7a 100755
+--- a/scripts/predict_unet_transformer.py
++++ b/scripts/predict_unet_transformer.py
+@@ -530,6 +530,10 @@ def predict(
+             )
+         graph = build_graph(coords, edges)
++        preilp_dir = os.environ.get("BIOHUB_PREILP_DIR")
++        if preilp_dir:
++            save_graph(graph, Path(preilp_dir) / f"{name}.geff")
++
+         if cfg.use_ilp and graph.num_edges() > 0:
+             solver = td.solvers.ILPSolver(
+                 edge_weight=cfg.ilp_edge_weight * td.EdgeAttr("edge_prob"),

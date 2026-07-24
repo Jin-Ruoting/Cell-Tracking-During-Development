@@ -333,3 +333,17 @@
 - Generated logs, reports, runtimes, scorer clones, predictions, and GEFF files
   remain outside Git.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U030 - Add Leakage-Safe Division Calibration Inference
+
+- Time: 2026-07-24 13:25 CST.
+- Added deterministic selection of division-positive training clips and
+  edge-count-matched division-negative clips, with explicit dataset exclusions
+  and balanced workload shards.
+- Added a minimal, hash-guarded patch to preserve candidate graphs before ILP
+  selection in temporary support-repository copies.
+- Added a two-GPU E005 calibration runner that keeps all copied repositories,
+  split manifests, predictions, GEFF graphs, and raw logs outside Git.
+- The four visible-test IDs are hard-excluded before calibration split
+  construction.
+- Server source changes: none; execution requires `git pull --ff-only`.

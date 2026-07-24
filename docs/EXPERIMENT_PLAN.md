@@ -61,6 +61,14 @@ a division Jaccard near `0.13` can in principle close the current gap if the
 adjusted edge score is preserved. This is a hypothesis until the official
 patched scorer confirms it on holdouts from both embryos.
 
+The first E005 calibration pass selects up to 16 division-positive clips per
+embryo and an equal number of division-negative clips matched by annotated edge
+count. It excludes all four visible-test IDs, balances the selected clips
+across two GPUs, and preserves both pre-ILP candidate graphs and baseline ILP
+graphs. The pre-ILP export permits multiple division-cost and conservative-fork
+sweeps from one neural inference pass. Promotion still requires validation on
+clips that were not used to select the rule.
+
 ## Evidence Policy
 
 Public notebook claims, local CV, Kaggle runtime completion, and leaderboard
