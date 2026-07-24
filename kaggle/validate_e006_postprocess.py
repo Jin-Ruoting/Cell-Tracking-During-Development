@@ -15,6 +15,8 @@ The postprocessed sweep changes only the graph used to select candidates,
 testing whether E000 topology repairs invalidate raw-graph candidates.
 The DeepCenter control evaluates the public checkpoint only as a veto on E000
 gap repairs and legacy safe divisions; it never adds detector peaks as nodes.
+The E000 ablation mode disables one deterministic postprocessing component at
+a time while preserving every other deployed setting.
 """
 
 from __future__ import annotations
@@ -43,6 +45,23 @@ CSV_COLUMNS = [
     "source_id",
     "target_id",
 ]
+POSTPROCESS_COUNTERS = (
+    "raw_edges",
+    "dropped_nonconsecutive_edges",
+    "dropped_long_edges",
+    "dropped_multi_parent_edges",
+    "motion_relink_edges",
+    "motion_relink_replaced_raw_edges",
+    "motion_relink_fallback_raw",
+    "gap_added_nodes",
+    "gap_added_edges",
+    "safe_divisions_added",
+    "pruned_isolated_nodes",
+    "short_track_nodes_removed",
+    "short_track_edges_removed",
+    "short_track_rescue_nodes",
+    "linefit_smoothed_nodes",
+)
 # The hp names record calibration-set TP counts; the supplied sweep graphs stay
 # untouched until this fixed rule set is evaluated.
 CALIBRATED_RULES = {
@@ -166,6 +185,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--postprocessed-rule-sweep", action="store_true")
     parser.add_argument("--deepcenter-control", action="store_true")
     parser.add_argument("--deepcenter-checkpoint", type=Path)
+    parser.add_argument("--e000-ablation-sweep", action="store_true")
     return parser.parse_args()
 
 
@@ -241,6 +261,7 @@ def build_variant_specs(
     calibrated_rule_sweep: bool,
     postprocessed_rule_sweep: bool,
     deepcenter_control: bool,
+    e000_ablation_sweep: bool,
 ) -> dict[str, dict[str, object]]:
     selected_modes = sum(
         int(enabled)
@@ -249,6 +270,7 @@ def build_variant_specs(
             calibrated_rule_sweep,
             postprocessed_rule_sweep,
             deepcenter_control,
+            e000_ablation_sweep,
         )
     )
     if selected_modes > 1:
@@ -258,6 +280,44 @@ def build_variant_specs(
             "e000_safe": {
                 "safe_divisions": True,
                 "rule": None,
+            },
+        }
+    if e000_ablation_sweep:
+        control = {
+            "safe_divisions": True,
+            "motion_relink": True,
+            "gap_close": True,
+            "short_track_filter": True,
+            "adaptive_short_track_rescue": True,
+            "linefit_smooth": True,
+            "prune_isolated": True,
+            "rule": None,
+        }
+        return {
+            "e000_safe": copy.deepcopy(control),
+            "e015_no_motion_relink": {
+                **copy.deepcopy(control),
+                "motion_relink": False,
+            },
+            "e015_no_gap_close": {
+                **copy.deepcopy(control),
+                "gap_close": False,
+            },
+            "e015_no_short_track_filter": {
+                **copy.deepcopy(control),
+                "short_track_filter": False,
+            },
+            "e015_no_short_track_rescue": {
+                **copy.deepcopy(control),
+                "adaptive_short_track_rescue": False,
+            },
+            "e015_no_linefit_smooth": {
+                **copy.deepcopy(control),
+                "linefit_smooth": False,
+            },
+            "e015_no_prune_isolated": {
+                **copy.deepcopy(control),
+                "prune_isolated": False,
             },
         }
     if deepcenter_control:
@@ -380,6 +440,12 @@ def filter_config_key(spec: dict[str, object]) -> tuple[object, ...]:
     use_deepcenter = bool(spec.get("deepcenter", False))
     return (
         bool(spec["safe_divisions"]),
+        bool(spec.get("motion_relink", True)),
+        bool(spec.get("gap_close", True)),
+        bool(spec.get("short_track_filter", True)),
+        bool(spec.get("adaptive_short_track_rescue", True)),
+        bool(spec.get("linefit_smooth", True)),
+        bool(spec.get("prune_isolated", True)),
         use_deepcenter,
         bool(spec.get("deepcenter_gap_veto", False)),
         bool(spec.get("deepcenter_safe_div_veto", False)),
@@ -394,6 +460,12 @@ def apply_filter_config(
 ) -> bool:
     (
         safe_divisions,
+        motion_relink,
+        gap_close,
+        short_track_filter,
+        adaptive_short_track_rescue,
+        linefit_smooth,
+        prune_isolated,
         use_deepcenter,
         gap_veto,
         safe_div_veto,
@@ -401,6 +473,14 @@ def apply_filter_config(
         safe_div_threshold,
     ) = key
     namespace["OUTPUT_SAFE_DIVISIONS"] = bool(safe_divisions)
+    namespace["OUTPUT_MOTION_RELINK"] = bool(motion_relink)
+    namespace["OUTPUT_GAP_CLOSE"] = bool(gap_close)
+    namespace["OUTPUT_FILTER_SHORT_TRACKS"] = bool(short_track_filter)
+    namespace["ADAPTIVE_SHORT_TRACK_RESCUE"] = bool(
+        adaptive_short_track_rescue
+    )
+    namespace["OUTPUT_LINEFIT_SMOOTH"] = bool(linefit_smooth)
+    namespace["OUTPUT_PRUNE_ISOLATED"] = bool(prune_isolated)
     namespace["USE_DEEPCENTER_VETO"] = bool(use_deepcenter)
     namespace["DEEPCENTER_GAP_VETO"] = bool(gap_veto)
     namespace["DEEPCENTER_SAFE_DIV_VETO"] = bool(safe_div_veto)
@@ -645,6 +725,7 @@ def main() -> None:
         args.calibrated_rule_sweep,
         args.postprocessed_rule_sweep,
         args.deepcenter_control,
+        args.e000_ablation_sweep,
     )
     deepcenter_bundle = (
         load_deepcenter_bundle(namespace, args.deepcenter_checkpoint)
@@ -656,11 +737,14 @@ def main() -> None:
     if not baseline_paths:
         raise FileNotFoundError(f"No baseline GEFFs under {args.baseline_dir}")
     baseline_names = {path.stem for path in baseline_paths}
-    if args.e000_only:
+    requires_preilp = any(
+        spec["rule"] is not None for spec in variant_specs.values()
+    )
+    if not requires_preilp:
         preilp_paths = {}
     else:
         if args.preilp_dir is None:
-            raise ValueError("--preilp-dir is required unless --e000-only")
+            raise ValueError("--preilp-dir is required for division-rule modes")
         preilp_paths = {
             path.stem: path for path in sorted(args.preilp_dir.rglob("*.geff"))
         }
@@ -696,6 +780,7 @@ def main() -> None:
         "calibrated_rule_sweep": args.calibrated_rule_sweep,
         "postprocessed_rule_sweep": args.postprocessed_rule_sweep,
         "deepcenter_control": args.deepcenter_control,
+        "e000_ablation_sweep": args.e000_ablation_sweep,
         "deepcenter_checkpoint": (
             str(args.deepcenter_checkpoint.resolve())
             if args.deepcenter_checkpoint is not None
@@ -714,7 +799,7 @@ def main() -> None:
         for index, baseline_path in enumerate(baseline_paths, start=1):
             dataset = baseline_path.stem
             _, raw_nodes, raw_edges = graph_rows(namespace, baseline_path)
-            if args.e000_only:
+            if not requires_preilp:
                 probabilities = {}
             else:
                 preilp_graph = namespace["graph_from_geff"](
@@ -791,6 +876,10 @@ def main() -> None:
                 )
                 dataset_outputs[variant] = {
                     **audit,
+                    "postprocess_counters": {
+                        name: int(filter_stats.get(name, 0))
+                        for name in POSTPROCESS_COUNTERS
+                    },
                     "safe_divisions_added": int(
                         filter_stats.get("safe_divisions_added", 0)
                     ),
