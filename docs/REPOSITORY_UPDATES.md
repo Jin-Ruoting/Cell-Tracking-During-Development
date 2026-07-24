@@ -347,3 +347,16 @@
 - The four visible-test IDs are hard-excluded before calibration split
   construction.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U031 - Add Reusable ILP Division-Cost Sweep
+
+- Time: 2026-07-24 13:32 CST.
+- Added a GEFF-to-GEFF ILP resolver so one pre-ILP neural inference pass can
+  evaluate multiple division penalties without recomputing detections or edge
+  probabilities.
+- Added a direct official-scorer wrapper for GEFF directories and a versioned
+  runner covering the original control plus five lower division costs.
+- Added focused tests for stable weight labels, deterministic GEFF discovery,
+  and duplicate-dataset rejection.
+- Candidate graphs, scorer logs, and completion markers remain outside Git.
+- Server source changes: none; execution requires `git pull --ff-only`.

@@ -69,6 +69,11 @@ graphs. The pre-ILP export permits multiple division-cost and conservative-fork
 sweeps from one neural inference pass. Promotion still requires validation on
 clips that were not used to select the rule.
 
+The first ILP sweep holds detector, candidate edges, appearance cost, and
+disappearance cost fixed while varying only division cost through
+`0.75, 0.5, 0.25, 0.0, -0.25`; the original `1.0` graph is the control. Every
+candidate is scored directly from GEFF with the pinned patched scorer.
+
 ## Evidence Policy
 
 Public notebook claims, local CV, Kaggle runtime completion, and leaderboard
