@@ -11,6 +11,8 @@ and searched-division logic. By default it evaluates four controlled variants:
 
 The optional calibrated sweep evaluates only rules selected on a separate
 calibration split, preserving the supplied graphs as label-disjoint validation.
+The postprocessed sweep changes only the graph used to select candidates,
+testing whether E000 topology repairs invalidate raw-graph candidates.
 """
 
 from __future__ import annotations
@@ -149,6 +151,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--skip-score", action="store_true")
     parser.add_argument("--calibrated-rule-sweep", action="store_true")
+    parser.add_argument("--postprocessed-rule-sweep", action="store_true")
     return parser.parse_args()
 
 
@@ -220,7 +223,10 @@ def load_notebook_namespace(args: argparse.Namespace) -> dict[str, object]:
 def build_variant_specs(
     namespace: dict[str, object],
     calibrated_rule_sweep: bool,
+    postprocessed_rule_sweep: bool,
 ) -> dict[str, dict[str, object]]:
+    if calibrated_rule_sweep and postprocessed_rule_sweep:
+        raise ValueError("Choose only one rule-sweep mode")
     notebook_rule = copy.deepcopy(namespace["SEARCHED_DIVISION_RULE"])
     notebook_rule["min_candidate_edge_probability"] = 0.0
     specs: dict[str, dict[str, object]] = {
@@ -231,14 +237,32 @@ def build_variant_specs(
         "e006_safe_search": {
             "safe_divisions": True,
             "rule": notebook_rule,
+            "selection_graph": "raw",
         },
     }
-    if calibrated_rule_sweep:
+    if postprocessed_rule_sweep:
+        specs["e008_post_current"] = {
+            "safe_divisions": True,
+            "rule": copy.deepcopy(notebook_rule),
+            "selection_graph": "filtered",
+        }
+        specs.update(
+            {
+                f"e008_post_{name}": {
+                    "safe_divisions": True,
+                    "rule": copy.deepcopy(rule),
+                    "selection_graph": "filtered",
+                }
+                for name, rule in CALIBRATED_RULES.items()
+            }
+        )
+    elif calibrated_rule_sweep:
         specs.update(
             {
                 f"e007_{name}": {
                     "safe_divisions": True,
                     "rule": copy.deepcopy(rule),
+                    "selection_graph": "raw",
                 }
                 for name, rule in CALIBRATED_RULES.items()
             }
@@ -253,6 +277,7 @@ def build_variant_specs(
                 "e006_no_safe_search": {
                     "safe_divisions": False,
                     "rule": copy.deepcopy(notebook_rule),
+                    "selection_graph": "raw",
                 },
             }
         )
@@ -476,6 +501,7 @@ def main() -> None:
     variant_specs = build_variant_specs(
         namespace,
         args.calibrated_rule_sweep,
+        args.postprocessed_rule_sweep,
     )
 
     baseline_paths = sorted(args.baseline_dir.glob("*.geff"))
@@ -509,6 +535,7 @@ def main() -> None:
         "notebook": str(args.notebook.resolve()),
         "notebook_sha256": file_sha256(args.notebook),
         "calibrated_rule_sweep": args.calibrated_rule_sweep,
+        "postprocessed_rule_sweep": args.postprocessed_rule_sweep,
         "datasets": [],
         "variant_specs": variant_specs,
         "variants": {name: {} for name in variant_specs},
@@ -554,10 +581,21 @@ def main() -> None:
                 searched_stats = {}
                 rule = spec["rule"]
                 if rule is not None:
+                    selection_graph = spec.get("selection_graph", "raw")
+                    if selection_graph == "raw":
+                        selection_nodes = raw_nodes
+                        selection_edges = raw_edges
+                    elif selection_graph == "filtered":
+                        selection_nodes = filtered_nodes
+                        selection_edges = filtered_edges
+                    else:
+                        raise ValueError(
+                            f"{variant}: unknown selection graph {selection_graph}"
+                        )
                     selected = select_rule_divisions(
                         namespace,
-                        raw_nodes,
-                        raw_edges,
+                        selection_nodes,
+                        selection_edges,
                         probabilities,
                         rule,
                     )
