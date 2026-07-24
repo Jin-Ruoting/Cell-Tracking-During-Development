@@ -3,21 +3,24 @@
 Reproducible public notebook for the Kaggle research competition
 [Biohub - Cell Tracking During Development](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development).
 
-The project achieved a clean public score of `0.908` and a top-10% result
-without metric exploits on 2026-07-24.
+The verified E000 reference achieved a clean public score of `0.908` and a
+top-10% result without metric exploits on 2026-07-24.
 
 ## Method
 
-The E005 notebook combines:
+The current E006 notebook preserves E000's detector, spatial D4
+test-time augmentation, ILP settings, graph postprocessing, and conservative
+short-track rescue. It then adds only prediction-supported division edges that
+pass learned-edge, motion, and 3D geometry gates.
 
-- a 3D cell detector with four-view flip test-time augmentation;
-- a learned adjacent-frame edge scorer;
-- integer-linear-programming lineage reconstruction;
-- conservative, prediction-supported direct-division recovery; and
-- final coordinate and graph-topology validation.
+The output is rejected if it contains dangling or nonconsecutive edges,
+multiple parents, hub-like sources, or coordinates outside the image volume.
+E006 remains an experimental candidate until its hidden output is shown to
+preserve every E000 node and edge apart from audited division additions.
 
-On 26 label-disjoint clips from both embryos, the pinned official scorer
-improved from `0.8966` to `0.9120` while preserving the adjusted edge term.
+On 26 label-disjoint clips from both embryos, the searched-division rule was
+directionally positive under the same D4 inference setting. This offline result
+is not presented as a verified leaderboard score.
 
 See [NOTICE.md](NOTICE.md) before reusing the notebook.
 

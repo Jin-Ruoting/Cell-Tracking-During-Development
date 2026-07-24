@@ -9,11 +9,12 @@
 - Upstream notebook SHA256:
   `b754eaffca194e1b1ebbf5aa6471016996313eea1f18af4ff94316df749a2684`
 
-The current E005 revision preserves the upstream detector, learned edge scorer,
-and ILP lineage construction, then adds prediction-supported direct-division
-recovery and strict graph validation. All project code required by the published
-kernel is embedded in the notebook. Users remain responsible for complying with
-the competition rules and the terms attached to upstream datasets and artifacts.
+The current E006 revision preserves the verified E000 detector, spatial D4
+test-time augmentation, learned edge scorer, ILP lineage construction, and
+graph postprocessing, then adds prediction-supported direct-division recovery
+and strict graph validation. All project code required by the published kernel
+is embedded in the notebook. Users remain responsible for complying with the
+competition rules and the terms attached to upstream datasets and artifacts.
 
 The official patched metric and its documentation are maintained separately at:
 

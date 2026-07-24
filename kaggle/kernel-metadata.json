@@ -1,6 +1,6 @@
 {
-  "id": "buaaauto/biohub-e005-validated-searched-divisions",
-  "title": "Biohub E005 | Validated Searched Divisions",
+  "id": "buaaauto/biohub-e006-e000-plus-searched-divisions",
+  "title": "Biohub E006 | E000 Plus Searched Divisions",
   "code_file": "biohub_clean_baseline.ipynb",
   "language": "python",
   "kernel_type": "notebook",
