@@ -410,25 +410,39 @@ def select_window_starts(
             f"Time span {min_time}:{max_time} is shorter than window "
             f"size {window_size}"
         )
-    labeled_target_times = {
-        int(gt_nodes[int(edge["target_id"])]["t"])
-        for edge in gt_edges
-        if int(edge["target_id"]) in gt_nodes
+    labeled_target_counts: dict[int, int] = defaultdict(int)
+    for edge in gt_edges:
+        target_id = int(edge["target_id"])
+        if target_id not in gt_nodes:
+            continue
+        labeled_target_counts[int(gt_nodes[target_id]["t"])] += 1
+    window_coverage = {
+        start: sum(
+            labeled_target_counts.get(target_time, 0)
+            for target_time in range(start + 1, start + window_size)
+        )
+        for start in possible
     }
     relevant = [
         start
         for start in possible
-        if any(
-            start < target_time < start + window_size
-            for target_time in labeled_target_times
-        )
+        if window_coverage[start] > 0
     ]
     if not relevant:
         return []
     if not limit or len(relevant) <= limit:
         return relevant
-    indices = np.rint(np.linspace(0, len(relevant) - 1, limit)).astype(int)
-    return sorted({relevant[int(index)] for index in indices})
+    selected: list[int] = []
+    for section in np.array_split(np.asarray(relevant), limit):
+        section_starts = [int(value) for value in section]
+        best_coverage = max(window_coverage[start] for start in section_starts)
+        best_starts = [
+            start
+            for start in section_starts
+            if window_coverage[start] == best_coverage
+        ]
+        selected.append(best_starts[len(best_starts) // 2])
+    return sorted(set(selected))
 
 
 def build_candidates(
