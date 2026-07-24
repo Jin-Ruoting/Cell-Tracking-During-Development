@@ -1,0 +1,63 @@
+# Local Codex and agent state
+AGENTS.md
+AGENTS.override.md
+agents.md
+agents.override.md
+.agents/
+.codex/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Notebook state
+.ipynb_checkpoints/
+
+# Local operational records
+docs/EXPERIMENT_LOG.md
+docs/REPOSITORY_UPDATES.md
+docs/WORKFLOW.md
+
+# Competition data and generated artifacts
+Dataset/
+data/
+artifacts/
+outputs/
+submissions/
+logs/
+*.log
+*.csv
+*.parquet
+*.npy
+*.npz
+*.pkl
+*.pickle
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.h5
+*.hdf5
+*.tif
+*.tiff
+*.zarr/
+*.geff/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+
+# Local environment and operating-system files
+.env
+.env.*
+.kaggle/
+kaggle.json
+*.pem
+*.key
+.DS_Store
