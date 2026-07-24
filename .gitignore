@@ -18,6 +18,11 @@ venv/
 # Notebook state
 .ipynb_checkpoints/
 
+# Local operational records
+docs/EXPERIMENT_LOG.md
+docs/REPOSITORY_UPDATES.md
+docs/WORKFLOW.md
+
 # Competition data and generated artifacts
 Dataset/
 data/
