@@ -656,3 +656,47 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `s040_e005_raw_fixed8_recoverability_20260724.json`, all under server
   `logs/`.
 - Source edits on server: none.
+
+## S041 - E005 Balanced Dual-GPU Calibration Inference
+
+- Time: 2026-07-24 13:26-13:39 CST.
+- Fast-forwarded the clean server checkout to `394154a`; all 25 focused project
+  tests passed.
+- Selected 16 division-positive clips per embryo and matched each with one
+  division-negative clip by annotated edge count. All four visible-test IDs
+  were excluded before selection.
+- The resulting 64 clips were split `32 + 32` across the two RTX 4090 GPUs.
+  Annotated-edge workload proxies were `23,011` and `23,009`.
+- Both temporary support-repository copies matched the guarded predictor SHA256
+  and received the pre-ILP export patch. The project checkout itself was not
+  modified.
+- Both shards completed. Exactly 64 pre-ILP candidate graphs and 64 baseline
+  ILP graphs were preserved under
+  `/tmp/biohub_e005_divcal_20260724a/`.
+- Completion marker:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s041_e005_division_calibration_inference_20260724a.done`.
+- Raw logs:
+  `s041_e005_division_calibration_inference_20260724a.log`,
+  `s041_e005_gpu0_20260724a.log`, and
+  `s041_e005_gpu1_20260724a.log`, all under server `logs/`.
+- Source edits on server: none.
+
+## S042 - Lower Division-Cost ILP Sweep Stopped
+
+- Time: 2026-07-24 13:29-13:49 CST.
+- Fast-forwarded the server to `632e6b4`; all 31 focused project tests passed.
+  The runner waited for S041 and then started the `0.75` division-cost
+  candidate.
+- Only four of 64 clips completed in roughly nine minutes before scoring or
+  advancing to the remaining four weights. Extrapolation put the five-weight
+  serial solve near 12 hours, before official metric evaluation.
+- The bottleneck was CPU-side ILP construction/solution on the dense pre-ILP
+  graphs, not neural inference. The process was interrupted with `SIGINT`;
+  no completion marker or experiment score was produced.
+- The `e005-ilsweep` screen window and partial ignored `/tmp` output were
+  retained. The sole detached `Kaggle` screen session remains active.
+- Decision: stop this low-throughput path and use the same saved graphs for
+  direct high-precision fork feature calibration.
+- Raw log:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s042_e005_division_weight_sweep_20260724a.log`.
+- Source edits on server: none.

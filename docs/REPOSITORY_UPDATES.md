@@ -360,3 +360,29 @@
   and duplicate-dataset rejection.
 - Candidate graphs, scorer logs, and completion markers remain outside Git.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U032 - Add Direct-Fork Candidate Feature Audit
+
+- Time: 2026-07-24 13:49 CST.
+- Added a training-only analyzer for every one-child parent and nearby root in
+  the following frame.
+- Features include the saved pre-ILP edge probability, parent/daughter and
+  sister geometry, midpoint displacement, predecessor motion, branch
+  continuation, and candidate rank.
+- Oracle labels are used only to measure recoverability and select a general
+  rule; they are never exported into test predictions.
+- Added focused tests for true-fork labeling, wrong-root rejection, ranking,
+  and summary counts.
+- Server source changes: none; execution requires `git pull --ff-only`.
+
+## U033 - Record Calibration Inference and Stop Serial ILP Sweep
+
+- Time: 2026-07-24 13:49 CST.
+- Recorded successful two-GPU inference on 64 leakage-safe calibration clips,
+  including exact shard balance and artifact counts.
+- Recorded that the lower-cost serial ILP sweep produced no score and was
+  stopped after four clips because its projected runtime was approximately 12
+  hours before metric evaluation.
+- Preserved the completed pre-ILP and baseline graphs for the faster direct-fork
+  calibration path.
+- Server source changes: none.
