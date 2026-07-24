@@ -456,3 +456,18 @@
 - Added one compatibility helper for both API forms plus parameterized
   regression coverage.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U040 - Add Cross-Embryo Official-Outcome Rule Search
+
+- Time: 2026-07-24 14:22 CST.
+- Added a dependency-light beam search over conjunctions of prediction-only
+  fork features, using only patched-scorer TP/FP outcomes from the broad
+  calibration candidate.
+- The search reports both total division Jaccard and the minimum embryo-level
+  Jaccard, and requires at least one retained true positive in each embryo.
+- Fixed calibration denominators are 21 annotated divisions for `44b6` and 54
+  for `6bba`.
+- Added tests for missing-motion bounds, canonical thresholds, and the fixed
+  denominator formula.
+- Search reports and logs remain outside Git.
+- Server source changes: none; execution requires `git pull --ff-only`.

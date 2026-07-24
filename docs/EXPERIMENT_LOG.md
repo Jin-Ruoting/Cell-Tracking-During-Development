@@ -773,3 +773,26 @@ Status: server is ready for future `git pull --ff-only` synchronization.
 - Raw log:
   `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s045_e005_official_fork_outcomes_20260724a.log`.
 - Source edits on server: none.
+
+## S045b - Official Fork Outcome Attribution
+
+- Time: 2026-07-24 14:13-14:15 CST.
+- Fast-forwarded the server to `87eb34f`; all 43 focused project tests passed.
+- The broad pre-ILP rule's 4,388 added edges decomposed into 19 official
+  true-positive forks, 129 official false-positive forks, and 4,240 ignored
+  forks. The ignored majority explains why raw candidate precision was not a
+  valid proxy for patched score.
+- Broad-rule embryo outcomes:
+  - `44b6`: 7 TP, 50 FP, 2,357 ignored.
+  - `6bba`: 12 TP, 79 FP, 1,883 ignored.
+- The geometry-only rule's 3,627 additions decomposed into 9 TP, 88 FP, and
+  3,530 ignored forks.
+- These exact scorer labels enable threshold search against the 148 evaluable
+  broad-rule forks rather than all 4,388 added edges. Calibration division
+  denominators are 21 for `44b6` and 54 for `6bba`.
+- Completion marker:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s045_e005_official_fork_outcomes_20260724b.done`.
+- Report and raw log:
+  `s045_e005_official_fork_outcomes_20260724b.json` and
+  `s045_e005_official_fork_outcomes_20260724b.log` under server `logs/`.
+- Source edits on server: none.
