@@ -1,0 +1,63 @@
+[
+  {
+    "name": "preedge_broad",
+    "require_preilp_edge": true,
+    "max_candidate_rank": 1,
+    "max_parent_candidate_um": 12.0,
+    "min_parent_existing_um": 2.5,
+    "max_sister_um": 19.0,
+    "max_midpoint_um": 6.0,
+    "max_child_distance_delta_um": 9.0,
+    "max_parent_motion_um": 8.0
+  },
+  {
+    "name": "preedge_balanced",
+    "require_preilp_edge": true,
+    "max_candidate_rank": 1,
+    "max_parent_candidate_um": 10.0,
+    "min_parent_existing_um": 3.25,
+    "min_sister_um": 5.0,
+    "max_sister_um": 14.0,
+    "max_midpoint_um": 4.0,
+    "max_child_distance_delta_um": 5.0,
+    "max_parent_motion_um": 5.0
+  },
+  {
+    "name": "preedge_highprob",
+    "require_preilp_edge": true,
+    "min_candidate_edge_probability": 0.65,
+    "max_candidate_rank": 1,
+    "max_parent_candidate_um": 10.0,
+    "min_parent_existing_um": 3.25,
+    "min_sister_um": 5.0,
+    "max_sister_um": 14.0,
+    "max_midpoint_um": 4.0,
+    "max_child_distance_delta_um": 5.0,
+    "max_parent_motion_um": 5.0
+  },
+  {
+    "name": "preedge_symmetric",
+    "require_preilp_edge": true,
+    "max_candidate_rank": 1,
+    "min_parent_candidate_um": 5.0,
+    "max_parent_candidate_um": 11.0,
+    "min_parent_existing_um": 5.0,
+    "max_parent_existing_um": 11.0,
+    "min_sister_um": 8.0,
+    "max_sister_um": 15.0,
+    "max_midpoint_um": 4.0,
+    "max_child_distance_delta_um": 3.0,
+    "max_parent_motion_um": 5.0
+  },
+  {
+    "name": "geometry_symmetric",
+    "max_candidate_rank": 1,
+    "max_parent_candidate_um": 9.0,
+    "min_parent_existing_um": 3.25,
+    "min_sister_um": 6.0,
+    "max_sister_um": 13.0,
+    "max_midpoint_um": 2.1,
+    "max_child_distance_delta_um": 2.1,
+    "max_parent_motion_um": 5.0
+  }
+]

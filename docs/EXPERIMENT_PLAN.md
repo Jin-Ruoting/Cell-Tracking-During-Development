@@ -74,6 +74,13 @@ disappearance cost fixed while varying only division cost through
 `0.75, 0.5, 0.25, 0.0, -0.25`; the original `1.0` graph is the control. Every
 candidate is scored directly from GEFF with the pinned patched scorer.
 
+The serial lower-cost ILP path was stopped after its projected runtime reached
+approximately 12 hours before scoring. The replacement sweep adds at most one
+edge from a one-child parent to a root at the next frame. Five explicit rules
+cover broad pre-ILP support, balanced geometry, high edge confidence, strict
+daughter symmetry, and a geometry-only control. Every rule preserves indegree
+one and outdegree at most two by construction.
+
 ## Evidence Policy
 
 Public notebook claims, local CV, Kaggle runtime completion, and leaderboard

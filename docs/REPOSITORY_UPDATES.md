@@ -396,3 +396,29 @@
 - The candidate report, raw log, and completion marker remain under ignored
   server `logs/`.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U035 - Add Conservative Direct-Fork Candidate Generator
+
+- Time: 2026-07-24 14:00 CST.
+- Added five explicit prediction-only fork rules and a GEFF augmenter that adds
+  at most one root edge to each one-child parent.
+- Every addition rechecks parent outdegree one and candidate indegree zero
+  immediately before writing, preventing merges and hubs.
+- The augmenter does not accept ground-truth paths or oracle labels; training
+  labels remain confined to offline rule evaluation.
+- Added focused tests for threshold semantics, missing-motion handling,
+  per-parent ranking, and rejection of unknown rule fields.
+- Generated candidate graphs and reports remain outside Git.
+- Server source changes: none; execution requires `git pull --ff-only`.
+
+## U036 - Add Official Direct-Fork Sweep Runner
+
+- Time: 2026-07-24 14:02 CST.
+- Added a versioned runner that generates all five direct-fork candidates and
+  scores the unchanged baseline plus every rule with the pinned official
+  scorer.
+- The runner rechecks the four-ID exclusion manifest and refuses to overwrite
+  an existing output root.
+- Candidate GEFFs, rule reports, per-rule metric logs, and completion markers
+  remain outside Git.
+- Server source changes: none; execution requires `git pull --ff-only`.
