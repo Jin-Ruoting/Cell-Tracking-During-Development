@@ -13,6 +13,8 @@ The optional calibrated sweep evaluates only rules selected on a separate
 calibration split, preserving the supplied graphs as label-disjoint validation.
 The postprocessed sweep changes only the graph used to select candidates,
 testing whether E000 topology repairs invalidate raw-graph candidates.
+The DeepCenter control evaluates the public checkpoint only as a veto on E000
+gap repairs and legacy safe divisions; it never adds detector peaks as nodes.
 """
 
 from __future__ import annotations
@@ -152,6 +154,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-score", action="store_true")
     parser.add_argument("--calibrated-rule-sweep", action="store_true")
     parser.add_argument("--postprocessed-rule-sweep", action="store_true")
+    parser.add_argument("--deepcenter-control", action="store_true")
+    parser.add_argument("--deepcenter-checkpoint", type=Path)
     return parser.parse_args()
 
 
@@ -213,6 +217,7 @@ def load_notebook_namespace(args: argparse.Namespace) -> dict[str, object]:
         "select_searched_division_edges",
         "apply_searched_division_edges",
         "filter_output_graph",
+        "load_deepcenter_veto_detector",
     }
     missing = sorted(required - namespace.keys())
     if missing:
@@ -224,9 +229,53 @@ def build_variant_specs(
     namespace: dict[str, object],
     calibrated_rule_sweep: bool,
     postprocessed_rule_sweep: bool,
+    deepcenter_control: bool,
 ) -> dict[str, dict[str, object]]:
-    if calibrated_rule_sweep and postprocessed_rule_sweep:
+    selected_modes = sum(
+        int(enabled)
+        for enabled in (
+            calibrated_rule_sweep,
+            postprocessed_rule_sweep,
+            deepcenter_control,
+        )
+    )
+    if selected_modes > 1:
         raise ValueError("Choose only one rule-sweep mode")
+    if deepcenter_control:
+        return {
+            "e000_safe": {
+                "safe_divisions": True,
+                "rule": None,
+                "deepcenter": False,
+            },
+            "e009_dc_gap": {
+                "safe_divisions": True,
+                "rule": None,
+                "deepcenter": True,
+                "deepcenter_gap_veto": True,
+                "deepcenter_safe_div_veto": False,
+                "deepcenter_gap_threshold": 0.20,
+                "deepcenter_safe_div_threshold": 0.12,
+            },
+            "e009_dc_safe_div": {
+                "safe_divisions": True,
+                "rule": None,
+                "deepcenter": True,
+                "deepcenter_gap_veto": False,
+                "deepcenter_safe_div_veto": True,
+                "deepcenter_gap_threshold": 0.20,
+                "deepcenter_safe_div_threshold": 0.12,
+            },
+            "e009_dc_both": {
+                "safe_divisions": True,
+                "rule": None,
+                "deepcenter": True,
+                "deepcenter_gap_veto": True,
+                "deepcenter_safe_div_veto": True,
+                "deepcenter_gap_threshold": 0.20,
+                "deepcenter_safe_div_threshold": 0.12,
+            },
+        }
     notebook_rule = copy.deepcopy(namespace["SEARCHED_DIVISION_RULE"])
     notebook_rule["min_candidate_edge_probability"] = 0.0
     specs: dict[str, dict[str, object]] = {
@@ -282,6 +331,63 @@ def build_variant_specs(
             }
         )
     return specs
+
+
+def load_deepcenter_bundle(
+    namespace: dict[str, object],
+    checkpoint: Path,
+) -> dict[str, object]:
+    if not checkpoint.is_file():
+        raise FileNotFoundError(checkpoint)
+    env_name = "BIOHUB_DEEPCENTER_CHECKPOINT"
+    previous = os.environ.get(env_name)
+    os.environ[env_name] = str(checkpoint.resolve())
+    namespace["USE_DEEPCENTER_VETO"] = True
+    namespace["REQUIRE_DEEPCENTER_VETO"] = True
+    namespace["DEEPCENTER_EXPECTED_EPOCH"] = 0
+    try:
+        bundle = namespace["load_deepcenter_veto_detector"]()
+    finally:
+        if previous is None:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = previous
+    if bundle is None:
+        raise RuntimeError("DeepCenter checkpoint did not load")
+    return bundle
+
+
+def filter_config_key(spec: dict[str, object]) -> tuple[object, ...]:
+    use_deepcenter = bool(spec.get("deepcenter", False))
+    return (
+        bool(spec["safe_divisions"]),
+        use_deepcenter,
+        bool(spec.get("deepcenter_gap_veto", False)),
+        bool(spec.get("deepcenter_safe_div_veto", False)),
+        float(spec.get("deepcenter_gap_threshold", 0.20)),
+        float(spec.get("deepcenter_safe_div_threshold", 0.12)),
+    )
+
+
+def apply_filter_config(
+    namespace: dict[str, object],
+    key: tuple[object, ...],
+) -> bool:
+    (
+        safe_divisions,
+        use_deepcenter,
+        gap_veto,
+        safe_div_veto,
+        gap_threshold,
+        safe_div_threshold,
+    ) = key
+    namespace["OUTPUT_SAFE_DIVISIONS"] = bool(safe_divisions)
+    namespace["USE_DEEPCENTER_VETO"] = bool(use_deepcenter)
+    namespace["DEEPCENTER_GAP_VETO"] = bool(gap_veto)
+    namespace["DEEPCENTER_SAFE_DIV_VETO"] = bool(safe_div_veto)
+    namespace["DEEPCENTER_GAP_THRESHOLD"] = float(gap_threshold)
+    namespace["DEEPCENTER_SAFE_DIV_THRESHOLD"] = float(safe_div_threshold)
+    return bool(use_deepcenter)
 
 
 def select_rule_divisions(
@@ -494,6 +600,12 @@ def evaluate_csv(args: argparse.Namespace, variant: str, csv_path: Path) -> str:
 
 def main() -> None:
     args = parse_args()
+    if args.deepcenter_control and args.deepcenter_checkpoint is None:
+        raise ValueError("--deepcenter-control requires --deepcenter-checkpoint")
+    if not args.deepcenter_control and args.deepcenter_checkpoint is not None:
+        raise ValueError(
+            "--deepcenter-checkpoint is valid only with --deepcenter-control"
+        )
     if args.output_dir.exists():
         raise FileExistsError(f"Refusing to overwrite {args.output_dir}")
     args.output_dir.mkdir(parents=True)
@@ -502,6 +614,12 @@ def main() -> None:
         namespace,
         args.calibrated_rule_sweep,
         args.postprocessed_rule_sweep,
+        args.deepcenter_control,
+    )
+    deepcenter_bundle = (
+        load_deepcenter_bundle(namespace, args.deepcenter_checkpoint)
+        if args.deepcenter_control
+        else None
     )
 
     baseline_paths = sorted(args.baseline_dir.glob("*.geff"))
@@ -536,6 +654,17 @@ def main() -> None:
         "notebook_sha256": file_sha256(args.notebook),
         "calibrated_rule_sweep": args.calibrated_rule_sweep,
         "postprocessed_rule_sweep": args.postprocessed_rule_sweep,
+        "deepcenter_control": args.deepcenter_control,
+        "deepcenter_checkpoint": (
+            str(args.deepcenter_checkpoint.resolve())
+            if args.deepcenter_checkpoint is not None
+            else None
+        ),
+        "deepcenter_checkpoint_sha256": (
+            file_sha256(args.deepcenter_checkpoint)
+            if args.deepcenter_checkpoint is not None
+            else None
+        ),
         "datasets": [],
         "variant_specs": variant_specs,
         "variants": {name: {} for name in variant_specs},
@@ -552,28 +681,27 @@ def main() -> None:
 
             dataset_outputs = {}
             variant_snapshots = {}
-            filtered_by_safe = {}
-            for safe_divisions in sorted(
-                {
-                    bool(spec["safe_divisions"])
-                    for spec in variant_specs.values()
-                },
-                reverse=True,
-            ):
-                namespace["OUTPUT_SAFE_DIVISIONS"] = safe_divisions
-                filtered_by_safe[safe_divisions] = namespace[
+            filtered_by_config = {}
+            filter_keys = {
+                filter_config_key(spec) for spec in variant_specs.values()
+            }
+            for filter_key in sorted(filter_keys, key=repr):
+                use_deepcenter = apply_filter_config(namespace, filter_key)
+                filtered_by_config[filter_key] = namespace[
                     "filter_output_graph"
                 ](
                     copy.deepcopy(raw_nodes),
                     copy.deepcopy(raw_edges),
                     dataset=dataset,
-                    deepcenter_bundle=None,
+                    deepcenter_bundle=(
+                        deepcenter_bundle if use_deepcenter else None
+                    ),
                 )
 
             for variant, spec in variant_specs.items():
                 safe_divisions = bool(spec["safe_divisions"])
-                filtered_nodes, filtered_edges, filter_stats = filtered_by_safe[
-                    safe_divisions
+                filtered_nodes, filtered_edges, filter_stats = filtered_by_config[
+                    filter_config_key(spec)
                 ]
                 nodes = copy.deepcopy(filtered_nodes)
                 edges = copy.deepcopy(filtered_edges)
@@ -618,6 +746,36 @@ def main() -> None:
                     "searched_division_candidates": len(selected),
                     "searched_divisions_added": int(
                         searched_stats.get("searched_divisions_added", 0)
+                    ),
+                    "gap_added_nodes": int(
+                        filter_stats.get("gap_added_nodes", 0)
+                    ),
+                    "gap_added_edges": int(
+                        filter_stats.get("gap_added_edges", 0)
+                    ),
+                    "deepcenter_gap_checked": int(
+                        filter_stats.get("deepcenter_gap_checked", 0)
+                    ),
+                    "deepcenter_gap_accepted": int(
+                        filter_stats.get("deepcenter_gap_accepted", 0)
+                    ),
+                    "deepcenter_gap_rejected": int(
+                        filter_stats.get("deepcenter_gap_rejected", 0)
+                    ),
+                    "deepcenter_gap_missing": int(
+                        filter_stats.get("deepcenter_gap_missing", 0)
+                    ),
+                    "deepcenter_safe_div_checked": int(
+                        filter_stats.get("deepcenter_safe_div_checked", 0)
+                    ),
+                    "deepcenter_safe_div_accepted": int(
+                        filter_stats.get("deepcenter_safe_div_accepted", 0)
+                    ),
+                    "deepcenter_safe_div_rejected": int(
+                        filter_stats.get("deepcenter_safe_div_rejected", 0)
+                    ),
+                    "deepcenter_safe_div_missing": int(
+                        filter_stats.get("deepcenter_safe_div_missing", 0)
                     ),
                 }
                 variant_snapshots[variant] = {
