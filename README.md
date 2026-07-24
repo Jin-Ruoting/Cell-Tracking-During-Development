@@ -30,5 +30,5 @@ See [NOTICE.md](NOTICE.md) before reusing the notebook.
 - `kaggle/biohub_clean_baseline.ipynb`: complete executable notebook.
 - `kaggle/kernel-metadata.json`: Kaggle kernel configuration.
 - `kaggle/validate_e006_postprocess.py`: offline controlled-variant validator.
-- `kaggle/audit_deepcenter_rescue.py`: complete-GT detector-complement audit.
+- `kaggle/audit_deepcenter_rescue.py`: sparse-label detector-complement audit.
 - `NOTICE.md`: attribution and reuse notice.

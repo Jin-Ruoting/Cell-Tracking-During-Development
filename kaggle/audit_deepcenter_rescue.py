@@ -3,12 +3,12 @@
 
 This diagnostic loads the committed Notebook as the source of E000
 postprocessing and DeepCenter inference. It never changes a prediction graph.
-For each complete-ground-truth frame it:
+For each frame with official sparse labels it:
 
 * matches E000 nodes to ground truth with the official 7 um radius;
 * extracts and physically suppresses DeepCenter local maxima;
 * removes peaks already covered by E000 nodes; and
-* measures whether the remaining peaks recover unmatched ground-truth nodes.
+* measures whether the remaining peaks recover unmatched labeled nodes.
 
 Three prediction-only candidate pools are reported: every novel peak, peaks
 near an E000 track endpoint or start, and peaks bridging both. The report also
@@ -69,6 +69,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--peak-min-distance", type=int, default=1)
     parser.add_argument("--max-datasets", type=int, default=0)
     parser.add_argument("--max-frames-per-dataset", type=int, default=0)
+    parser.add_argument("--include-unlabeled-frames", action="store_true")
     parser.add_argument("--skip-centroid-refinement", action="store_true")
     return parser.parse_args()
 
@@ -342,8 +343,8 @@ def greedy_candidate_matching(
 def empty_metric() -> dict[str, int]:
     return {
         "candidates": 0,
-        "matched_missing_gt": 0,
-        "false_candidates": 0,
+        "matched_uncovered_labeled_gt": 0,
+        "unmatched_candidates": 0,
         "recoverable_gt_edges": 0,
         "matched_with_incoming_context": 0,
         "matched_with_outgoing_context": 0,
@@ -362,12 +363,14 @@ def finalise_metric(
     gt_nodes: int,
 ) -> dict[str, int | float | None]:
     candidates = int(metric["candidates"])
-    matched = int(metric["matched_missing_gt"])
+    matched = int(metric["matched_uncovered_labeled_gt"])
     missing = max(0, int(gt_nodes) - int(baseline_matched))
     output: dict[str, int | float | None] = dict(metric)
-    output["precision"] = matched / candidates if candidates else None
-    output["missing_gt_recall"] = matched / missing if missing else None
-    output["oracle_node_recall"] = (
+    output["sparse_hit_rate"] = matched / candidates if candidates else None
+    output["uncovered_labeled_gt_recall"] = (
+        matched / missing if missing else None
+    )
+    output["oracle_labeled_node_recall"] = (
         min(gt_nodes, baseline_matched + matched) / gt_nodes
         if gt_nodes
         else None
@@ -468,11 +471,11 @@ def write_threshold_csv(
         "baseline_matched_gt",
         "baseline_node_recall",
         "candidates",
-        "matched_missing_gt",
-        "false_candidates",
-        "precision",
-        "missing_gt_recall",
-        "oracle_node_recall",
+        "matched_uncovered_labeled_gt",
+        "unmatched_candidates",
+        "sparse_hit_rate",
+        "uncovered_labeled_gt_recall",
+        "oracle_labeled_node_recall",
         "recoverable_gt_edges",
         "matched_with_incoming_context",
         "matched_with_outgoing_context",
@@ -556,12 +559,15 @@ def main() -> None:
             "centroid_refinement": not args.skip_centroid_refinement,
             "max_datasets": args.max_datasets,
             "max_frames_per_dataset": args.max_frames_per_dataset,
+            "include_unlabeled_frames": args.include_unlabeled_frames,
             "voxel_scale_um": scale.tolist(),
             "pool_factor": pool_factor,
         },
         "notes": [
             "No prediction graph is modified by this diagnostic.",
             "Candidate matches are greedy in descending DeepCenter score.",
+            "Official GT is sparse; sparse hit rate is not biological precision.",
+            "Unmatched candidates may be real unlabeled cells, not false peaks.",
             "Checkpoint train/validation clips are not independent evidence.",
         ],
         "dataset_results": {},
@@ -625,9 +631,18 @@ def main() -> None:
                 zarr_meta.read_text(encoding="utf-8")
             )["shape"]
         )
-        frame_count = shape[0]
+        image_frame_count = shape[0]
+        frame_indices = (
+            list(range(image_frame_count))
+            if args.include_unlabeled_frames
+            else [
+                t
+                for t in range(image_frame_count)
+                if gt_by_frame.get(t)
+            ]
+        )
         if args.max_frames_per_dataset:
-            frame_count = min(frame_count, args.max_frames_per_dataset)
+            frame_indices = frame_indices[: args.max_frames_per_dataset]
 
         baseline_gt_map: dict[int, int] = {}
         baseline_matched = 0
@@ -637,7 +652,7 @@ def main() -> None:
         frame_cache: dict[int, np.ndarray] = {}
         heatmap_cache: dict[tuple[str, int], np.ndarray] = {}
 
-        for t in range(frame_count):
+        for frame_position, t in enumerate(frame_indices, start=1):
             pred_ids = baseline_by_frame.get(t, [])
             gt_ids = gt_by_frame.get(t, [])
             pred_points = points_um(pred_ids, baseline_nodes, scale)
@@ -740,10 +755,14 @@ def main() -> None:
             frame_cache.pop(t, None)
             heatmap_cache.pop((dataset, t), None)
 
-            if (t + 1) % 25 == 0 or t + 1 == frame_count:
+            if (
+                frame_position % 25 == 0
+                or frame_position == len(frame_indices)
+            ):
                 print(
                     f"[{dataset_index:02d}/{len(baseline_paths):02d}] "
-                    f"{dataset} frame {t + 1}/{frame_count}",
+                    f"{dataset} labeled frame "
+                    f"{frame_position}/{len(frame_indices)} (t={t})",
                     flush=True,
                 )
 
@@ -754,7 +773,7 @@ def main() -> None:
             }
             for selection in SELECTIONS
         }
-        for t in range(frame_count):
+        for t in frame_indices:
             candidates = candidates_by_frame.get(t, [])
             gt_ids = unmatched_gt_by_frame.get(t, [])
             gt_points = points_um(gt_ids, gt_nodes, scale)
@@ -786,9 +805,9 @@ def main() -> None:
                     for candidate_idx in eligible:
                         gt_id = matched.get(candidate_idx)
                         if gt_id is None:
-                            metric["false_candidates"] += 1
+                            metric["unmatched_candidates"] += 1
                             continue
-                        metric["matched_missing_gt"] += 1
+                        metric["matched_uncovered_labeled_gt"] += 1
                         incoming_context = sum(
                             predecessor in baseline_gt_map
                             for predecessor in gt_predecessors.get(
@@ -820,11 +839,12 @@ def main() -> None:
 
         dataset_result: dict[str, object] = {
             "checkpoint_membership": membership.get(dataset, "unseen"),
-            "frames": frame_count,
+            "frames": len(frame_indices),
+            "image_frames": image_frame_count,
             "gt_nodes": gt_total,
             "baseline_nodes": sum(
                 len(baseline_by_frame.get(t, []))
-                for t in range(frame_count)
+                for t in frame_indices
             ),
             "baseline_matched_gt": baseline_matched,
             "baseline_node_recall": (
