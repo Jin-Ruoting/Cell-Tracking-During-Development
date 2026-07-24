@@ -471,3 +471,15 @@
   denominator formula.
 - Search reports and logs remain outside Git.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U041 - Add S046 Confirmation Rules
+
+- Time: 2026-07-24 14:29 CST.
+- Added five confirmation rules: exact and outward-rounded versions of the
+  top overall and top cross-embryo robust conditions, plus the best bounded
+  sister-distance alternative.
+- Each rule retains the broad rule's pre-ILP support, rank-one, geometry, and
+  one-to-one graph constraints.
+- The existing S044 runner accepts the new config through
+  `BIOHUB_E005_FORK_RULES`; no duplicate experiment implementation was added.
+- Server source changes: none; execution requires `git pull --ff-only`.

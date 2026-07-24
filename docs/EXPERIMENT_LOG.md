@@ -796,3 +796,28 @@ Status: server is ready for future `git pull --ff-only` synchronization.
   `s045_e005_official_fork_outcomes_20260724b.json` and
   `s045_e005_official_fork_outcomes_20260724b.log` under server `logs/`.
 - Source edits on server: none.
+
+## S046 - Cross-Embryo Official-Outcome Rule Search
+
+- Time: 2026-07-24 14:20-14:26 CST.
+- Fast-forwarded the server to `af59ccd`; all 46 focused project tests passed.
+- Beam search created 224 scorer-grounded threshold atoms and explored 144,756
+  conjunctions over the broad rule's 4,388 additions and 148 evaluable forks.
+- The top estimated rule retained 13 TP and 14 FP, for division Jaccard
+  `0.1461`. Its embryo-specific estimates were:
+  - `44b6`: 5 TP, 6 FP, Jaccard `0.1852`.
+  - `6bba`: 8 TP, 8 FP, Jaccard `0.1290`.
+- Its four added constraints relative to the broad rule were midpoint at most
+  `4.2219` micrometres, existing-edge probability at least `0.697675`, parent
+  motion at least `1.625` micrometres, and sister distance at least `8.125`
+  micrometres.
+- The top no-minimum-motion robust rule estimated 13 TP, 20 FP, and division
+  Jaccard `0.1368`, with both embryo-specific values above `0.13`.
+- These are in-sample outcome estimates, not new official graph scores.
+  Exact, rounded, and robust variants must be regenerated and fully rescored.
+- Completion marker:
+  `/data/zqjinruoting/Kaggle/Cell Tracking During Development/logs/s046_e005_official_rule_search_20260724a.done`.
+- Report and raw log:
+  `s046_e005_official_rule_search_20260724a.json` and
+  `s046_e005_official_rule_search_20260724a.log` under server `logs/`.
+- Source edits on server: none.

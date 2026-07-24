@@ -1,0 +1,71 @@
+[
+  {
+    "name": "search_overall_exact",
+    "require_preilp_edge": true,
+    "max_candidate_rank": 1,
+    "max_parent_candidate_um": 12.0,
+    "min_parent_existing_um": 2.5,
+    "min_sister_um": 8.125,
+    "max_sister_um": 19.0,
+    "max_midpoint_um": 4.2218738434491385,
+    "max_child_distance_delta_um": 9.0,
+    "min_existing_edge_probability": 0.6976750493049622,
+    "min_parent_motion_um": 1.625,
+    "max_parent_motion_um": 8.0
+  },
+  {
+    "name": "search_overall_rounded",
+    "require_preilp_edge": true,
+    "max_candidate_rank": 1,
+    "max_parent_candidate_um": 12.0,
+    "min_parent_existing_um": 2.5,
+    "min_sister_um": 8.0,
+    "max_sister_um": 19.0,
+    "max_midpoint_um": 4.25,
+    "max_child_distance_delta_um": 9.0,
+    "min_existing_edge_probability": 0.69,
+    "min_parent_motion_um": 1.5,
+    "max_parent_motion_um": 8.0
+  },
+  {
+    "name": "search_robust_exact",
+    "require_preilp_edge": true,
+    "max_candidate_rank": 1,
+    "max_parent_candidate_um": 12.0,
+    "min_parent_existing_um": 2.5,
+    "min_sister_um": 8.443747686898277,
+    "max_sister_um": 19.0,
+    "min_midpoint_um": 1.4072912811497127,
+    "max_midpoint_um": 4.2218738434491385,
+    "max_child_distance_delta_um": 9.0,
+    "min_existing_edge_probability": 0.6976750493049622,
+    "max_parent_motion_um": 8.0
+  },
+  {
+    "name": "search_robust_rounded",
+    "require_preilp_edge": true,
+    "max_candidate_rank": 1,
+    "max_parent_candidate_um": 12.0,
+    "min_parent_existing_um": 2.5,
+    "min_sister_um": 8.25,
+    "max_sister_um": 19.0,
+    "min_midpoint_um": 1.25,
+    "max_midpoint_um": 4.25,
+    "max_child_distance_delta_um": 9.0,
+    "min_existing_edge_probability": 0.69,
+    "max_parent_motion_um": 8.0
+  },
+  {
+    "name": "search_sister_band_exact",
+    "require_preilp_edge": true,
+    "max_candidate_rank": 1,
+    "max_parent_candidate_um": 12.0,
+    "min_parent_existing_um": 2.5,
+    "min_sister_um": 8.125,
+    "max_sister_um": 12.481861840286488,
+    "max_midpoint_um": 4.2218738434491385,
+    "max_child_distance_delta_um": 9.0,
+    "min_parent_motion_um": 1.625,
+    "max_parent_motion_um": 8.0
+  }
+]
