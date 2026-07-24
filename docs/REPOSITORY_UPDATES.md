@@ -282,3 +282,15 @@
 - Twenty focused tests, Bash syntax checks, Python compilation, and whitespace
   validation pass locally.
 - Server source changes: none; execution requires `git pull --ff-only`.
+
+## U026 - Add Robust E005 Baseline Runner
+
+- Time: 2026-07-24 13:02 CST.
+- Added one versioned runner for the E005 preflight instead of embedding a
+  multi-stage experiment in a fragile `screen` command.
+- The runner records the clean commit, runs all tests, builds the isolated
+  Python 3.11 runtime, analyzes all annotated division geometry, and evaluates
+  E001 with the pinned official patched scorer.
+- Runtime artifacts, JSON reports, completion markers, converted GEFFs, and raw
+  logs remain outside Git.
+- Server source changes: none; execution requires `git pull --ff-only`.
