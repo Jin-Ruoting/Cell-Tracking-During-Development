@@ -144,7 +144,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--notebook", type=Path, required=True)
     parser.add_argument("--baseline-dir", type=Path, required=True)
-    parser.add_argument("--preilp-dir", type=Path, required=True)
+    parser.add_argument("--preilp-dir", type=Path)
     parser.add_argument("--image-dir", type=Path, required=True)
     parser.add_argument("--ground-truth-dir", type=Path, required=True)
     parser.add_argument("--runtime-dir", type=Path, required=True)
@@ -152,6 +152,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--scorer-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--skip-score", action="store_true")
+    parser.add_argument("--e000-only", action="store_true")
     parser.add_argument("--calibrated-rule-sweep", action="store_true")
     parser.add_argument("--postprocessed-rule-sweep", action="store_true")
     parser.add_argument("--deepcenter-control", action="store_true")
@@ -227,6 +228,7 @@ def load_notebook_namespace(args: argparse.Namespace) -> dict[str, object]:
 
 def build_variant_specs(
     namespace: dict[str, object],
+    e000_only: bool,
     calibrated_rule_sweep: bool,
     postprocessed_rule_sweep: bool,
     deepcenter_control: bool,
@@ -234,13 +236,21 @@ def build_variant_specs(
     selected_modes = sum(
         int(enabled)
         for enabled in (
+            e000_only,
             calibrated_rule_sweep,
             postprocessed_rule_sweep,
             deepcenter_control,
         )
     )
     if selected_modes > 1:
-        raise ValueError("Choose only one rule-sweep mode")
+        raise ValueError("Choose only one validation mode")
+    if e000_only:
+        return {
+            "e000_safe": {
+                "safe_divisions": True,
+                "rule": None,
+            },
+        }
     if deepcenter_control:
         return {
             "e000_safe": {
@@ -612,6 +622,7 @@ def main() -> None:
     namespace = load_notebook_namespace(args)
     variant_specs = build_variant_specs(
         namespace,
+        args.e000_only,
         args.calibrated_rule_sweep,
         args.postprocessed_rule_sweep,
         args.deepcenter_control,
@@ -623,19 +634,28 @@ def main() -> None:
     )
 
     baseline_paths = sorted(args.baseline_dir.glob("*.geff"))
-    preilp_paths = {
-        path.stem: path for path in sorted(args.preilp_dir.rglob("*.geff"))
-    }
     if not baseline_paths:
         raise FileNotFoundError(f"No baseline GEFFs under {args.baseline_dir}")
     baseline_names = {path.stem for path in baseline_paths}
-    if baseline_names != set(preilp_paths):
-        raise RuntimeError(
-            {
-                "missing_preilp": sorted(baseline_names - set(preilp_paths)),
-                "extra_preilp": sorted(set(preilp_paths) - baseline_names),
-            }
-        )
+    if args.e000_only:
+        preilp_paths = {}
+    else:
+        if args.preilp_dir is None:
+            raise ValueError("--preilp-dir is required unless --e000-only")
+        preilp_paths = {
+            path.stem: path for path in sorted(args.preilp_dir.rglob("*.geff"))
+        }
+        if baseline_names != set(preilp_paths):
+            raise RuntimeError(
+                {
+                    "missing_preilp": sorted(
+                        baseline_names - set(preilp_paths)
+                    ),
+                    "extra_preilp": sorted(
+                        set(preilp_paths) - baseline_names
+                    ),
+                }
+            )
 
     files = {
         name: (args.output_dir / f"{name}.csv").open("w", newline="")
@@ -652,6 +672,7 @@ def main() -> None:
     report: dict[str, object] = {
         "notebook": str(args.notebook.resolve()),
         "notebook_sha256": file_sha256(args.notebook),
+        "e000_only": args.e000_only,
         "calibrated_rule_sweep": args.calibrated_rule_sweep,
         "postprocessed_rule_sweep": args.postprocessed_rule_sweep,
         "deepcenter_control": args.deepcenter_control,
@@ -673,10 +694,15 @@ def main() -> None:
         for index, baseline_path in enumerate(baseline_paths, start=1):
             dataset = baseline_path.stem
             _, raw_nodes, raw_edges = graph_rows(namespace, baseline_path)
-            preilp_graph = namespace["graph_from_geff"](preilp_paths[dataset])
-            probabilities = namespace["edge_probability_map"](
-                preilp_graph.edge_attrs().iter_rows(named=True)
-            )
+            if args.e000_only:
+                probabilities = {}
+            else:
+                preilp_graph = namespace["graph_from_geff"](
+                    preilp_paths[dataset]
+                )
+                probabilities = namespace["edge_probability_map"](
+                    preilp_graph.edge_attrs().iter_rows(named=True)
+                )
             report["datasets"].append(dataset)
 
             dataset_outputs = {}

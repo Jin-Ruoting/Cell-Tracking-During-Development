@@ -16,6 +16,21 @@ and strict graph validation. All project code required by the published kernel
 is embedded in the notebook. Users remain responsible for complying with the
 competition rules and the terms attached to upstream datasets and artifacts.
 
+`kaggle/run_dual_seed_control.py` can reproduce a bounded independent-seed
+control by verifying and applying the guarded inference patch from:
+
+- Title: `Biohub Cell Tracking: Two Seeds Logit Blend`
+- Author: Pilkwang Kim
+- URL:
+  https://www.kaggle.com/code/pilkwang/biohub-cell-tracking-two-seeds-logit-blend
+- Reference state observed: 2026-07-24
+- Reference notebook SHA256:
+  `70e0c300ceae3cd7ee2cf1650c4a5f74463543e3aae1b486ba5f729a76281656`
+
+The reference notebook remains an external input and is not redistributed in
+this repository. The control runs its verified patch only against a temporary
+copy of the public support source and verifies both model-weight checksums.
+
 The official patched metric and its documentation are maintained separately at:
 
 - https://github.com/royerlab/kaggle-cell-tracking-competition

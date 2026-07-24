@@ -31,4 +31,5 @@ See [NOTICE.md](NOTICE.md) before reusing the notebook.
 - `kaggle/kernel-metadata.json`: Kaggle kernel configuration.
 - `kaggle/validate_e006_postprocess.py`: offline controlled-variant validator.
 - `kaggle/audit_deepcenter_rescue.py`: sparse-label detector-complement audit.
+- `kaggle/run_dual_seed_control.py`: pinned independent-seed inference control.
 - `NOTICE.md`: attribution and reuse notice.
