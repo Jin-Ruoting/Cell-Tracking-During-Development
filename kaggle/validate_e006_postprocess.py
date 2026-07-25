@@ -186,6 +186,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--deepcenter-control", action="store_true")
     parser.add_argument("--deepcenter-checkpoint", type=Path)
     parser.add_argument("--e000-ablation-sweep", action="store_true")
+    parser.add_argument("--e000-motion-control", action="store_true")
     return parser.parse_args()
 
 
@@ -262,6 +263,7 @@ def build_variant_specs(
     postprocessed_rule_sweep: bool,
     deepcenter_control: bool,
     e000_ablation_sweep: bool,
+    e000_motion_control: bool,
 ) -> dict[str, dict[str, object]]:
     selected_modes = sum(
         int(enabled)
@@ -271,6 +273,7 @@ def build_variant_specs(
             postprocessed_rule_sweep,
             deepcenter_control,
             e000_ablation_sweep,
+            e000_motion_control,
         )
     )
     if selected_modes > 1:
@@ -282,7 +285,7 @@ def build_variant_specs(
                 "rule": None,
             },
         }
-    if e000_ablation_sweep:
+    if e000_ablation_sweep or e000_motion_control:
         control = {
             "safe_divisions": True,
             "motion_relink": True,
@@ -293,6 +296,14 @@ def build_variant_specs(
             "prune_isolated": True,
             "rule": None,
         }
+        if e000_motion_control:
+            return {
+                "e000_safe": copy.deepcopy(control),
+                "e017_no_motion_relink": {
+                    **copy.deepcopy(control),
+                    "motion_relink": False,
+                },
+            }
         return {
             "e000_safe": copy.deepcopy(control),
             "e015_no_motion_relink": {
@@ -726,6 +737,7 @@ def main() -> None:
         args.postprocessed_rule_sweep,
         args.deepcenter_control,
         args.e000_ablation_sweep,
+        args.e000_motion_control,
     )
     deepcenter_bundle = (
         load_deepcenter_bundle(namespace, args.deepcenter_checkpoint)
@@ -781,6 +793,7 @@ def main() -> None:
         "postprocessed_rule_sweep": args.postprocessed_rule_sweep,
         "deepcenter_control": args.deepcenter_control,
         "e000_ablation_sweep": args.e000_ablation_sweep,
+        "e000_motion_control": args.e000_motion_control,
         "deepcenter_checkpoint": (
             str(args.deepcenter_checkpoint.resolve())
             if args.deepcenter_checkpoint is not None
