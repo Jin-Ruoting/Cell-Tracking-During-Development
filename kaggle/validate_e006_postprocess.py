@@ -17,6 +17,8 @@ The DeepCenter control evaluates the public checkpoint only as a veto on E000
 gap repairs and legacy safe divisions; it never adds detector peaks as nodes.
 The E000 ablation mode disables one deterministic postprocessing component at
 a time while preserving every other deployed setting.
+The pre-ILP motion sweep changes only the learned-probability map exposed to
+the existing Hungarian motion relinker and its probability bonus.
 """
 
 from __future__ import annotations
@@ -187,6 +189,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--deepcenter-checkpoint", type=Path)
     parser.add_argument("--e000-ablation-sweep", action="store_true")
     parser.add_argument("--e000-motion-control", action="store_true")
+    parser.add_argument("--preilp-motion-sweep", action="store_true")
     return parser.parse_args()
 
 
@@ -249,6 +252,7 @@ def load_notebook_namespace(args: argparse.Namespace) -> dict[str, object]:
         "apply_searched_division_edges",
         "filter_output_graph",
         "load_deepcenter_veto_detector",
+        "motion_relink_edges",
     }
     missing = sorted(required - namespace.keys())
     if missing:
@@ -264,6 +268,7 @@ def build_variant_specs(
     deepcenter_control: bool,
     e000_ablation_sweep: bool,
     e000_motion_control: bool,
+    preilp_motion_sweep: bool,
 ) -> dict[str, dict[str, object]]:
     selected_modes = sum(
         int(enabled)
@@ -274,6 +279,7 @@ def build_variant_specs(
             deepcenter_control,
             e000_ablation_sweep,
             e000_motion_control,
+            preilp_motion_sweep,
         )
     )
     if selected_modes > 1:
@@ -283,6 +289,41 @@ def build_variant_specs(
             "e000_safe": {
                 "safe_divisions": True,
                 "rule": None,
+            },
+        }
+    if preilp_motion_sweep:
+        control = {
+            "safe_divisions": True,
+            "rule": None,
+            "motion_relink": True,
+            "gap_close": True,
+            "short_track_filter": True,
+            "adaptive_short_track_rescue": False,
+            "linefit_smooth": True,
+            "prune_isolated": True,
+            "preilp_motion": False,
+            "motion_learned_bonus": 1.0,
+        }
+        return {
+            "e000_safe": control,
+            "e018_preilp_b100": {
+                **copy.deepcopy(control),
+                "preilp_motion": True,
+            },
+            "e018_preilp_b200": {
+                **copy.deepcopy(control),
+                "preilp_motion": True,
+                "motion_learned_bonus": 2.0,
+            },
+            "e018_preilp_b400": {
+                **copy.deepcopy(control),
+                "preilp_motion": True,
+                "motion_learned_bonus": 4.0,
+            },
+            "e018_preilp_b800": {
+                **copy.deepcopy(control),
+                "preilp_motion": True,
+                "motion_learned_bonus": 8.0,
             },
         }
     if e000_ablation_sweep or e000_motion_control:
@@ -454,7 +495,7 @@ def filter_config_key(spec: dict[str, object]) -> tuple[object, ...]:
         bool(spec.get("motion_relink", True)),
         bool(spec.get("gap_close", True)),
         bool(spec.get("short_track_filter", True)),
-        bool(spec.get("adaptive_short_track_rescue", True)),
+        bool(spec.get("adaptive_short_track_rescue", False)),
         bool(spec.get("linefit_smooth", True)),
         bool(spec.get("prune_isolated", True)),
         use_deepcenter,
@@ -462,13 +503,15 @@ def filter_config_key(spec: dict[str, object]) -> tuple[object, ...]:
         bool(spec.get("deepcenter_safe_div_veto", False)),
         float(spec.get("deepcenter_gap_threshold", 0.20)),
         float(spec.get("deepcenter_safe_div_threshold", 0.12)),
+        bool(spec.get("preilp_motion", False)),
+        float(spec.get("motion_learned_bonus", 1.0)),
     )
 
 
 def apply_filter_config(
     namespace: dict[str, object],
     key: tuple[object, ...],
-) -> bool:
+) -> tuple[bool, bool]:
     (
         safe_divisions,
         motion_relink,
@@ -482,6 +525,8 @@ def apply_filter_config(
         safe_div_veto,
         gap_threshold,
         safe_div_threshold,
+        preilp_motion,
+        motion_learned_bonus,
     ) = key
     namespace["OUTPUT_SAFE_DIVISIONS"] = bool(safe_divisions)
     namespace["OUTPUT_MOTION_RELINK"] = bool(motion_relink)
@@ -497,7 +542,8 @@ def apply_filter_config(
     namespace["DEEPCENTER_SAFE_DIV_VETO"] = bool(safe_div_veto)
     namespace["DEEPCENTER_GAP_THRESHOLD"] = float(gap_threshold)
     namespace["DEEPCENTER_SAFE_DIV_THRESHOLD"] = float(safe_div_threshold)
-    return bool(use_deepcenter)
+    namespace["MOTION_RELINK_LEARNED_BONUS"] = float(motion_learned_bonus)
+    return bool(use_deepcenter), bool(preilp_motion)
 
 
 def select_rule_divisions(
@@ -738,6 +784,7 @@ def main() -> None:
         args.deepcenter_control,
         args.e000_ablation_sweep,
         args.e000_motion_control,
+        args.preilp_motion_sweep,
     )
     deepcenter_bundle = (
         load_deepcenter_bundle(namespace, args.deepcenter_checkpoint)
@@ -750,7 +797,8 @@ def main() -> None:
         raise FileNotFoundError(f"No baseline GEFFs under {args.baseline_dir}")
     baseline_names = {path.stem for path in baseline_paths}
     requires_preilp = any(
-        spec["rule"] is not None for spec in variant_specs.values()
+        spec["rule"] is not None or bool(spec.get("preilp_motion", False))
+        for spec in variant_specs.values()
     )
     if not requires_preilp:
         preilp_paths = {}
@@ -794,6 +842,7 @@ def main() -> None:
         "deepcenter_control": args.deepcenter_control,
         "e000_ablation_sweep": args.e000_ablation_sweep,
         "e000_motion_control": args.e000_motion_control,
+        "preilp_motion_sweep": args.preilp_motion_sweep,
         "deepcenter_checkpoint": (
             str(args.deepcenter_checkpoint.resolve())
             if args.deepcenter_checkpoint is not None
@@ -826,21 +875,47 @@ def main() -> None:
             dataset_outputs = {}
             variant_snapshots = {}
             filtered_by_config = {}
+            original_motion_relink = namespace["motion_relink_edges"]
             filter_keys = {
                 filter_config_key(spec) for spec in variant_specs.values()
             }
             for filter_key in sorted(filter_keys, key=repr):
-                use_deepcenter = apply_filter_config(namespace, filter_key)
-                filtered_by_config[filter_key] = namespace[
-                    "filter_output_graph"
-                ](
-                    copy.deepcopy(raw_nodes),
-                    copy.deepcopy(raw_edges),
-                    dataset=dataset,
-                    deepcenter_bundle=(
-                        deepcenter_bundle if use_deepcenter else None
-                    ),
+                use_deepcenter, use_preilp_motion = apply_filter_config(
+                    namespace,
+                    filter_key,
                 )
+                if use_preilp_motion:
+                    preilp_probabilities = dict(probabilities)
+
+                    def motion_relink_with_preilp(
+                        nodes_by_id,
+                        stats,
+                        learned_edge_probs=None,
+                    ):
+                        merged = dict(learned_edge_probs or {})
+                        merged.update(preilp_probabilities)
+                        return original_motion_relink(
+                            nodes_by_id,
+                            stats,
+                            merged,
+                        )
+
+                    namespace["motion_relink_edges"] = motion_relink_with_preilp
+                else:
+                    namespace["motion_relink_edges"] = original_motion_relink
+                try:
+                    filtered_by_config[filter_key] = namespace[
+                        "filter_output_graph"
+                    ](
+                        copy.deepcopy(raw_nodes),
+                        copy.deepcopy(raw_edges),
+                        dataset=dataset,
+                        deepcenter_bundle=(
+                            deepcenter_bundle if use_deepcenter else None
+                        ),
+                    )
+                finally:
+                    namespace["motion_relink_edges"] = original_motion_relink
 
             for variant, spec in variant_specs.items():
                 safe_divisions = bool(spec["safe_divisions"])
@@ -899,6 +974,11 @@ def main() -> None:
                     "searched_division_candidates": len(selected),
                     "searched_divisions_added": int(
                         searched_stats.get("searched_divisions_added", 0)
+                    ),
+                    "preilp_probability_edges": (
+                        len(probabilities)
+                        if bool(spec.get("preilp_motion", False))
+                        else 0
                     ),
                     "gap_added_nodes": int(
                         filter_stats.get("gap_added_nodes", 0)
