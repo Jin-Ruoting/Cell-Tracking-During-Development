@@ -9,15 +9,16 @@
 - Upstream notebook SHA256:
   `b754eaffca194e1b1ebbf5aa6471016996313eea1f18af4ff94316df749a2684`
 
-The current E006 revision preserves the verified E000 detector, spatial D4
-test-time augmentation, learned edge scorer, ILP lineage construction, and
-graph postprocessing, then adds prediction-supported direct-division recovery
-and strict graph validation. All project code required by the published kernel
-is embedded in the notebook. Users remain responsible for complying with the
-competition rules and the terms attached to upstream datasets and artifacts.
+The current E016 revision preserves the verified E000 detector, spatial D4
+test-time augmentation, ILP lineage construction, and graph postprocessing.
+It routes `44b6` videos through the primary model and `6bba` videos through a
+calibrated independent-seed detector/link ensemble, followed by strict graph
+validation. All project code required by the published kernel is embedded in
+the notebook. Users remain responsible for complying with the competition
+rules and the terms attached to upstream datasets and artifacts.
 
-`kaggle/run_dual_seed_control.py` can reproduce a bounded independent-seed
-control by verifying and applying the guarded inference patch from:
+The E016 notebook and `kaggle/run_dual_seed_control.py` adapt the guarded
+independent-seed inference patch from:
 
 - Title: `Biohub Cell Tracking: Two Seeds Logit Blend`
 - Author: Pilkwang Kim
@@ -27,9 +28,11 @@ control by verifying and applying the guarded inference patch from:
 - Reference notebook SHA256:
   `70e0c300ceae3cd7ee2cf1650c4a5f74463543e3aae1b486ba5f729a76281656`
 
-The reference notebook remains an external input and is not redistributed in
-this repository. The control runs its verified patch only against a temporary
-copy of the public support source and verifies both model-weight checksums.
+The original reference notebook is not redistributed in this repository.
+Derived dual-seed patch logic is embedded in the E016 notebook and is limited
+to the `6bba` route. The control applies the verified reference patch only to a
+temporary copy of the public support source, and both paths verify the primary
+and secondary model-weight checksums.
 
 `kaggle/audit_hoct_rerank.py` is a read-only compatibility and edge-ranking
 audit for the Higher-Order Cell Tracking Transformer (HOCT):

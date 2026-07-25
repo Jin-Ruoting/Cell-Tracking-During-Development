@@ -1,6 +1,6 @@
 {
-  "id": "buaaauto/biohub-e006-e000-plus-searched-divisions",
-  "title": "Biohub E006 | E000 Plus Searched Divisions",
+  "id": "buaaauto/biohub-e016-embryo-aware-dual-seed",
+  "title": "Biohub E016 | Embryo-Aware Dual Seed",
   "code_file": "biohub_clean_baseline.ipynb",
   "language": "python",
   "kernel_type": "notebook",
@@ -12,7 +12,8 @@
     "gpu"
   ],
   "dataset_sources": [
-    "pilkwang/biohub-tracking-support-pack-50ep-v1"
+    "pilkwang/biohub-tracking-support-pack-50ep-v1",
+    "pilkwang/biohub-temporal-unet3d-seed314159-v1"
   ],
   "kernel_sources": [],
   "competition_sources": [

@@ -8,20 +8,22 @@ top-10% result without metric exploits on 2026-07-24.
 
 ## Method
 
-The current E006 notebook preserves E000's detector, spatial D4
-test-time augmentation, ILP settings, graph postprocessing, and conservative
-short-track rescue. It then adds only prediction-supported division edges that
-pass learned-edge, motion, and 3D geometry gates.
+The current E016 notebook preserves E000's detector, spatial D4 test-time
+augmentation, ILP settings, graph postprocessing, and conservative short-track
+rescue for every `44b6` video. For `6bba` videos only, it combines the primary
+model with an independently trained temporal model through calibrated
+detection blending and low-margin link consensus.
 
 The output is rejected if it contains dangling or nonconsecutive edges,
 multiple parents, hub-like sources, or coordinates outside the image volume.
-The controlled validator confirmed that E006 preserves every E000 node and
-edge apart from audited division additions.
+Both model weights are verified by SHA256 before inference. Searched divisions
+and all label-dependent routes remain disabled.
 
-On 26 label-disjoint clips from both embryos, however, E000 and the current
-E006 rule both scored `0.8827` under the pinned official scorer. E006 is
-therefore not promoted for submission. The validator also provides a fixed
-sweep of rules selected on a separate calibration split.
+E016 improved a 26-video screen by `+0.0094`. On a disjoint 64-video
+confirmation corpus, it improved the pinned official score from `0.8947` to
+`0.8992` (`+0.0045`), stayed exactly equal to primary on all `44b6` rows, and
+improved both prespecified `6bba` halves. These are offline validation results;
+the E016 public leaderboard score has not yet been verified.
 
 See [NOTICE.md](NOTICE.md) before reusing the notebook.
 
