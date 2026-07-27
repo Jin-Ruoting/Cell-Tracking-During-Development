@@ -12,12 +12,12 @@ attributed method reference, not an E025 result.
 
 ## Method
 
-E025 starts from the author's verified E016 `0.908` submission. It applies the
-primary model and an independently trained temporal model to every hidden
-dataset with global detection-blend alpha `0.475`, low-margin link consensus,
-spatial D4 detection TTA, ILP disappearance weight `1.5`, and a relaxed motion
-gate of `10.0 um`. These settings and the center-confirmed synthetic-gap rule
-are adapted from
+E025 starts from this repository's verified E016 `0.908` submission. It
+applies the primary model and an independently trained temporal model to every
+hidden dataset with global detection-blend alpha `0.475`, low-margin link
+consensus, spatial D4 detection TTA, ILP disappearance weight `1.5`, and a
+relaxed motion gate of `10.0 um`. These settings and the center-confirmed
+synthetic-gap rule are adapted from
 [Pilkwang Kim's public v40 method](https://www.kaggle.com/code/pilkwang/biohub-cell-tracking-two-seeds-logit-blend?scriptVersionId=337798568)
 with explicit attribution.
 
@@ -36,12 +36,14 @@ the verified `0.908` baseline, not as an independently invented `0.912`
 method. Its own leaderboard score must be established by its Kaggle
 submission.
 
-The offline validator also supports an exact, externally pinned parity check
-for Pilkwang Kim's public two-seed Notebook v40. Supplying
+The offline validator also supports an exact, externally pinned
+postprocessing-parity check for Pilkwang Kim's public two-seed Notebook v40.
+Supplying
 `--expected-notebook-sha256` makes that mode fail closed on the Notebook
 source, while the public-v40 DeepCenter checkpoint is always verified before
-the original postprocessor is loaded. The parity mode is separate from E025,
-which retains the local binary-lineage guard.
+the original postprocessor is loaded. This mode evaluates externally supplied
+baseline GEFF graphs; it is not an end-to-end inference-parity claim. It is
+separate from E025, which retains the local binary-lineage guard.
 
 See [NOTICE.md](NOTICE.md) before reusing the notebook.
 
