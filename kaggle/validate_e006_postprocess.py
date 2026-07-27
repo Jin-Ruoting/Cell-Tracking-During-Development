@@ -18,7 +18,8 @@ gap repairs and legacy safe divisions; it never adds detector peaks as nodes.
 The E000 ablation mode disables one deterministic postprocessing component at
 a time while preserving every other deployed setting.
 The pre-ILP motion sweep changes only the learned-probability map exposed to
-the existing Hungarian motion relinker and its probability bonus.
+the existing Hungarian motion relinker and its probability bonus. A focused
+mode evaluates one preregistered bonus beside the same E000 control.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ import copy
 import csv
 import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
@@ -190,6 +192,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--e000-ablation-sweep", action="store_true")
     parser.add_argument("--e000-motion-control", action="store_true")
     parser.add_argument("--preilp-motion-sweep", action="store_true")
+    parser.add_argument(
+        "--preilp-motion-bonus",
+        type=float,
+        help=(
+            "Evaluate E000 and one pre-ILP motion arm at the supplied "
+            "positive learned-edge bonus."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -269,6 +279,7 @@ def build_variant_specs(
     e000_ablation_sweep: bool,
     e000_motion_control: bool,
     preilp_motion_sweep: bool,
+    preilp_motion_bonus: float | None,
 ) -> dict[str, dict[str, object]]:
     selected_modes = sum(
         int(enabled)
@@ -280,6 +291,7 @@ def build_variant_specs(
             e000_ablation_sweep,
             e000_motion_control,
             preilp_motion_sweep,
+            preilp_motion_bonus is not None,
         )
     )
     if selected_modes > 1:
@@ -291,7 +303,7 @@ def build_variant_specs(
                 "rule": None,
             },
         }
-    if preilp_motion_sweep:
+    if preilp_motion_sweep or preilp_motion_bonus is not None:
         control = {
             "safe_divisions": True,
             "rule": None,
@@ -304,6 +316,15 @@ def build_variant_specs(
             "preilp_motion": False,
             "motion_learned_bonus": 1.0,
         }
+        if preilp_motion_bonus is not None:
+            return {
+                "e000_safe": control,
+                "e018_preilp_selected": {
+                    **copy.deepcopy(control),
+                    "preilp_motion": True,
+                    "motion_learned_bonus": preilp_motion_bonus,
+                },
+            }
         return {
             "e000_safe": control,
             "e018_preilp_b100": {
@@ -766,6 +787,11 @@ def main() -> None:
     args = parse_args()
     if args.max_outdegree < 2:
         raise ValueError("--max-outdegree must be at least 2")
+    if args.preilp_motion_bonus is not None and (
+        not math.isfinite(args.preilp_motion_bonus)
+        or args.preilp_motion_bonus <= 0.0
+    ):
+        raise ValueError("--preilp-motion-bonus must be finite and positive")
     if args.deepcenter_control and args.deepcenter_checkpoint is None:
         raise ValueError("--deepcenter-control requires --deepcenter-checkpoint")
     if not args.deepcenter_control and args.deepcenter_checkpoint is not None:
@@ -785,6 +811,7 @@ def main() -> None:
         args.e000_ablation_sweep,
         args.e000_motion_control,
         args.preilp_motion_sweep,
+        args.preilp_motion_bonus,
     )
     deepcenter_bundle = (
         load_deepcenter_bundle(namespace, args.deepcenter_checkpoint)
@@ -843,6 +870,7 @@ def main() -> None:
         "e000_ablation_sweep": args.e000_ablation_sweep,
         "e000_motion_control": args.e000_motion_control,
         "preilp_motion_sweep": args.preilp_motion_sweep,
+        "preilp_motion_bonus": args.preilp_motion_bonus,
         "deepcenter_checkpoint": (
             str(args.deepcenter_checkpoint.resolve())
             if args.deepcenter_checkpoint is not None
