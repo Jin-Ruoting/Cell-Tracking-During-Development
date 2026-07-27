@@ -73,6 +73,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--blend-mix-temperature", type=float, default=1.0)
     parser.add_argument("--blend-low-margin-max", type=float, default=0.35)
     parser.add_argument("--blend-edge-threshold", type=float, default=0.48)
+    parser.add_argument("--export-preilp", action="store_true")
     parser.add_argument(
         "--expected-reference-sha256",
         default=REFERENCE_NOTEBOOK_SHA256,
@@ -112,6 +113,7 @@ def notebook_source(cell: dict[str, object]) -> str:
 def apply_reference_patch(
     reference_notebook: Path,
     temporary_repo: Path,
+    export_preilp: bool,
 ) -> str:
     notebook = json.loads(reference_notebook.read_text(encoding="utf-8"))
     cells = notebook.get("cells")
@@ -136,7 +138,25 @@ def apply_reference_patch(
     predictor = (
         temporary_repo / "scripts" / "predict_unet_transformer.py"
     )
-    compile(predictor.read_text(encoding="utf-8"), str(predictor), "exec")
+    predictor_source = predictor.read_text(encoding="utf-8")
+    if export_preilp:
+        marker = "        graph = build_graph(coords, edges)\n"
+        if predictor_source.count(marker) != 1:
+            raise RuntimeError(
+                "Pre-ILP export patch anchor must occur exactly once"
+            )
+        predictor_source = predictor_source.replace(
+            marker,
+            marker
+            + """        preilp_dir = os.environ.get("BIOHUB_PREILP_DIR")
+        if preilp_dir:
+            save_graph(graph, Path(preilp_dir) / f"{name}.geff")
+
+""",
+            1,
+        )
+        predictor.write_text(predictor_source, encoding="utf-8")
+    compile(predictor_source, str(predictor), "exec")
     return file_sha256(predictor)
 
 
@@ -182,6 +202,12 @@ def variant_environment(
         "PYTHONPATH": python_path,
         "USER": f"dual_seed_{variant}",
     }
+    if args.export_preilp:
+        env["BIOHUB_PREILP_DIR"] = str(
+            (args.output_dir / variant / "preilp").resolve()
+        )
+    else:
+        env.pop("BIOHUB_PREILP_DIR", None)
     for key in (
         "BIOHUB_SECONDARY_WEIGHTS",
         "BIOHUB_SECONDARY_EDGE_WEIGHT",
@@ -274,7 +300,11 @@ def prepare_variant(
     patched_sha256 = apply_reference_patch(
         args.reference_notebook,
         temporary_repo,
+        args.export_preilp,
     )
+    preilp_dir = variant_root / "preilp"
+    if args.export_preilp:
+        preilp_dir.mkdir()
     split_path = variant_root / "split.json"
     split_path.write_text(
         json.dumps(
@@ -297,6 +327,7 @@ def prepare_variant(
         "repo": temporary_repo,
         "split": split_path,
         "output": output_dir,
+        "preilp": preilp_dir if args.export_preilp else None,
         "patched_predictor_sha256": patched_sha256,
     }
 
@@ -429,6 +460,18 @@ def main() -> None:
             ],
             "command": commands[variant],
         }
+        if args.export_preilp:
+            preilp_dir = Path(item["preilp"])
+            found_preilp = {
+                path.stem for path in preilp_dir.glob("*.geff")
+            }
+            if found_preilp != expected:
+                raise RuntimeError(
+                    f"{variant} pre-ILP output mismatch: "
+                    f"missing={sorted(expected - found_preilp)}, "
+                    f"extra={sorted(found_preilp - expected)}"
+                )
+            results[variant]["preilp_dir"] = str(preilp_dir)
 
     manifest = {
         "reference_notebook": str(args.reference_notebook.resolve()),
@@ -443,6 +486,7 @@ def main() -> None:
         "datasets": datasets,
         "det_threshold": args.det_threshold,
         "ilp_disappearance_weight": args.ilp_disappearance_weight,
+        "export_preilp": args.export_preilp,
         "blend": {
             "edge_weight": args.blend_edge_weight,
             "detection_weight": args.blend_detection_weight,
