@@ -35,6 +35,21 @@ applies the verified reference patch only to a temporary copy of the public
 support source, and both paths verify the primary and secondary model-weight
 checksums.
 
+The optional parity mode in `kaggle/validate_e006_postprocess.py` targets a
+later state of the same public Notebook:
+
+- Version: `40`
+- Kaggle run: `337798568`
+- Reference state observed: 2026-07-27
+- Reference notebook SHA256:
+  `e75c2c384294c8e151993b426e7739b16a4646f6cf9bb23dd448fc78cd230e50`
+
+The v40 source is not redistributed. The validator requires the user-supplied
+external Notebook and can fail closed against its SHA256. Its exact parity arm
+also uses the public DeepCenter epoch-500 checkpoint at SHA256
+`8164d1ffa07f87e0506027a0392edeab7939a32bd5e3f756377c0d72885cf127`;
+neither that model nor its dataset is included here.
+
 The optional edge-logit TTA control in `kaggle/run_dual_seed_control.py` is
 informed by a second public Pilkwang Kim notebook:
 

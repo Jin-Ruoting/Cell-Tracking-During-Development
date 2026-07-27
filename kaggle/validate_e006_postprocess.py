@@ -20,6 +20,8 @@ a time while preserving every other deployed setting.
 The pre-ILP motion sweep changes only the learned-probability map exposed to
 the existing Hungarian motion relinker and its probability bonus. A focused
 mode evaluates one preregistered bonus beside the same E000 control.
+The public-v40 parity mode loads Pilkwang's 13-cell notebook layout and runs
+its frozen DeepCenter-confirmed postprocessor as one exact comparison arm.
 """
 
 from __future__ import annotations
@@ -65,6 +67,9 @@ POSTPROCESS_COUNTERS = (
     "short_track_edges_removed",
     "short_track_rescue_nodes",
     "linefit_smoothed_nodes",
+)
+PUBLIC_V40_DEEPCENTER_SHA256 = (
+    "8164d1ffa07f87e0506027a0392edeab7939a32bd5e3f756377c0d72885cf127"
 )
 # The hp names record calibration-set TP counts; the supplied sweep graphs stay
 # untouched until this fixed rule set is evaluated.
@@ -193,6 +198,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--e000-motion-control", action="store_true")
     parser.add_argument("--preilp-motion-sweep", action="store_true")
     parser.add_argument(
+        "--public-v40-parity",
+        action="store_true",
+        help=(
+            "Load the public 13-cell v40 layout and run its exact "
+            "DeepCenter-confirmed postprocessing arm."
+        ),
+    )
+    parser.add_argument(
+        "--expected-notebook-sha256",
+        help=(
+            "Optional lowercase SHA256 pin for --public-v40-parity. "
+            "A mismatch fails before the output directory is created."
+        ),
+    )
+    parser.add_argument(
         "--preilp-motion-bonus",
         type=float,
         help=(
@@ -234,40 +254,116 @@ def definition_prefix(source: str) -> ast.Module:
     return ast.fix_missing_locations(ast.Module(body=body, type_ignores=[]))
 
 
+def notebook_cell_source(cells: list[dict[str, object]], index: int) -> str:
+    source = cells[index].get("source")
+    if isinstance(source, str):
+        return source
+    if isinstance(source, list) and all(
+        isinstance(part, str) for part in source
+    ):
+        return "".join(source)
+    raise TypeError(
+        f"Notebook cell {index} source must be a string or string list"
+    )
+
+
 def load_notebook_namespace(args: argparse.Namespace) -> dict[str, object]:
     sys.path.insert(0, str(args.support_src))
     sys.path.insert(0, str(args.runtime_dir))
 
     notebook = json.loads(args.notebook.read_text(encoding="utf-8"))
     cells = notebook["cells"]
-    if len(cells) != 20:
-        raise RuntimeError(f"Expected 20 notebook cells, found {len(cells)}")
 
     namespace: dict[str, object] = {
         "__name__": "biohub_e006_offline_validation",
         "__file__": str(args.notebook),
     }
-    exec(compile(cells[6]["source"], "e006-cell-6", "exec"), namespace)
-    exec(compile(cells[7]["source"], "e006-cell-7", "exec"), namespace)
+    if args.public_v40_parity:
+        if len(cells) != 13:
+            raise RuntimeError(
+                f"Expected 13 public-v40 notebook cells, found {len(cells)}"
+            )
+        exec(
+            compile(
+                notebook_cell_source(cells, 4),
+                "public-v40-cell-4",
+                "exec",
+            ),
+            namespace,
+        )
+        exec(
+            compile(
+                notebook_cell_source(cells, 5),
+                "public-v40-cell-5",
+                "exec",
+            ),
+            namespace,
+        )
+        postprocess_source = notebook_cell_source(cells, 11)
+        postprocess_label = "public-v40-cell-11-defs"
+    else:
+        if len(cells) != 20:
+            raise RuntimeError(f"Expected 20 notebook cells, found {len(cells)}")
+        exec(
+            compile(notebook_cell_source(cells, 6), "e006-cell-6", "exec"),
+            namespace,
+        )
+        exec(
+            compile(notebook_cell_source(cells, 7), "e006-cell-7", "exec"),
+            namespace,
+        )
+        postprocess_source = notebook_cell_source(cells, 13)
+        postprocess_label = "e006-cell-13-defs"
     namespace["TEST_DIR"] = args.image_dir
     exec(
-        compile(definition_prefix(cells[13]["source"]), "e006-cell-13-defs", "exec"),
+        compile(
+            definition_prefix(postprocess_source),
+            postprocess_label,
+            "exec",
+        ),
         namespace,
     )
 
     required = {
         "graph_from_geff",
-        "edge_probability_map",
-        "select_searched_division_edges",
-        "apply_searched_division_edges",
         "filter_output_graph",
         "load_deepcenter_veto_detector",
         "motion_relink_edges",
     }
+    if not args.public_v40_parity:
+        required.update(
+            {
+                "edge_probability_map",
+                "select_searched_division_edges",
+                "apply_searched_division_edges",
+            }
+        )
     missing = sorted(required - namespace.keys())
     if missing:
         raise RuntimeError(f"Notebook functions missing: {missing}")
     return namespace
+
+
+def validate_public_v40_config(namespace: dict[str, object]) -> None:
+    expected = {
+        "USE_DEEPCENTER_VETO": True,
+        "REQUIRE_DEEPCENTER_VETO": True,
+        "DEEPCENTER_GAP_VETO": True,
+        "DEEPCENTER_SAFE_DIV_VETO": False,
+        "DEEPCENTER_GAP_THRESHOLD": 0.25,
+        "DEEPCENTER_GAP_CONFIRM_MIN_SPAN_UM": 8.5,
+        "DEEPCENTER_EXPECTED_EPOCH": 500,
+    }
+    mismatches = {
+        name: {"expected": value, "actual": namespace.get(name)}
+        for name, value in expected.items()
+        if namespace.get(name) != value
+    }
+    if mismatches:
+        raise RuntimeError(
+            "Public-v40 DeepCenter configuration mismatch: "
+            + json.dumps(mismatches, sort_keys=True)
+        )
 
 
 def build_variant_specs(
@@ -280,6 +376,7 @@ def build_variant_specs(
     e000_motion_control: bool,
     preilp_motion_sweep: bool,
     preilp_motion_bonus: float | None,
+    public_v40_parity: bool,
 ) -> dict[str, dict[str, object]]:
     selected_modes = sum(
         int(enabled)
@@ -292,10 +389,38 @@ def build_variant_specs(
             e000_motion_control,
             preilp_motion_sweep,
             preilp_motion_bonus is not None,
+            public_v40_parity,
         )
     )
     if selected_modes > 1:
         raise ValueError("Choose only one validation mode")
+    if public_v40_parity:
+        validate_public_v40_config(namespace)
+        return {
+            "public_v40_exact": {
+                "safe_divisions": bool(namespace["OUTPUT_SAFE_DIVISIONS"]),
+                "rule": None,
+                "motion_relink": bool(namespace["OUTPUT_MOTION_RELINK"]),
+                "gap_close": bool(namespace["OUTPUT_GAP_CLOSE"]),
+                "short_track_filter": bool(
+                    namespace["OUTPUT_FILTER_SHORT_TRACKS"]
+                ),
+                "adaptive_short_track_rescue": bool(
+                    namespace["ADAPTIVE_SHORT_TRACK_RESCUE"]
+                ),
+                "linefit_smooth": bool(namespace["OUTPUT_LINEFIT_SMOOTH"]),
+                "prune_isolated": bool(namespace["OUTPUT_PRUNE_ISOLATED"]),
+                "deepcenter": True,
+                "deepcenter_gap_veto": True,
+                "deepcenter_safe_div_veto": False,
+                "deepcenter_gap_threshold": 0.25,
+                "deepcenter_safe_div_threshold": float(
+                    namespace["DEEPCENTER_SAFE_DIV_THRESHOLD"]
+                ),
+                "deepcenter_gap_confirm_min_span_um": 8.5,
+                "deepcenter_expected_epoch": 500,
+            },
+        }
     if e000_only:
         return {
             "e000_safe": {
@@ -488,6 +613,7 @@ def build_variant_specs(
 def load_deepcenter_bundle(
     namespace: dict[str, object],
     checkpoint: Path,
+    expected_epoch: int = 0,
 ) -> dict[str, object]:
     if not checkpoint.is_file():
         raise FileNotFoundError(checkpoint)
@@ -496,7 +622,7 @@ def load_deepcenter_bundle(
     os.environ[env_name] = str(checkpoint.resolve())
     namespace["USE_DEEPCENTER_VETO"] = True
     namespace["REQUIRE_DEEPCENTER_VETO"] = True
-    namespace["DEEPCENTER_EXPECTED_EPOCH"] = 0
+    namespace["DEEPCENTER_EXPECTED_EPOCH"] = expected_epoch
     try:
         bundle = namespace["load_deepcenter_veto_detector"]()
     finally:
@@ -524,6 +650,7 @@ def filter_config_key(spec: dict[str, object]) -> tuple[object, ...]:
         bool(spec.get("deepcenter_safe_div_veto", False)),
         float(spec.get("deepcenter_gap_threshold", 0.20)),
         float(spec.get("deepcenter_safe_div_threshold", 0.12)),
+        spec.get("deepcenter_gap_confirm_min_span_um"),
         bool(spec.get("preilp_motion", False)),
         float(spec.get("motion_learned_bonus", 1.0)),
     )
@@ -546,6 +673,7 @@ def apply_filter_config(
         safe_div_veto,
         gap_threshold,
         safe_div_threshold,
+        gap_confirm_min_span_um,
         preilp_motion,
         motion_learned_bonus,
     ) = key
@@ -563,6 +691,10 @@ def apply_filter_config(
     namespace["DEEPCENTER_SAFE_DIV_VETO"] = bool(safe_div_veto)
     namespace["DEEPCENTER_GAP_THRESHOLD"] = float(gap_threshold)
     namespace["DEEPCENTER_SAFE_DIV_THRESHOLD"] = float(safe_div_threshold)
+    if gap_confirm_min_span_um is not None:
+        namespace["DEEPCENTER_GAP_CONFIRM_MIN_SPAN_UM"] = float(
+            gap_confirm_min_span_um
+        )
     namespace["MOTION_RELINK_LEARNED_BONUS"] = float(motion_learned_bonus)
     return bool(use_deepcenter), bool(preilp_motion)
 
@@ -792,12 +924,67 @@ def main() -> None:
         or args.preilp_motion_bonus <= 0.0
     ):
         raise ValueError("--preilp-motion-bonus must be finite and positive")
-    if args.deepcenter_control and args.deepcenter_checkpoint is None:
-        raise ValueError("--deepcenter-control requires --deepcenter-checkpoint")
-    if not args.deepcenter_control and args.deepcenter_checkpoint is not None:
-        raise ValueError(
-            "--deepcenter-checkpoint is valid only with --deepcenter-control"
+    deepcenter_mode = args.deepcenter_control or args.public_v40_parity
+    if deepcenter_mode and args.deepcenter_checkpoint is None:
+        mode_name = (
+            "--public-v40-parity"
+            if args.public_v40_parity
+            else "--deepcenter-control"
         )
+        raise ValueError(f"{mode_name} requires --deepcenter-checkpoint")
+    if not deepcenter_mode and args.deepcenter_checkpoint is not None:
+        raise ValueError(
+            "--deepcenter-checkpoint is valid only with --deepcenter-control "
+            "or --public-v40-parity"
+        )
+    if (
+        args.expected_notebook_sha256 is not None
+        and not args.public_v40_parity
+    ):
+        raise ValueError(
+            "--expected-notebook-sha256 is valid only with "
+            "--public-v40-parity"
+        )
+
+    expected_notebook_sha256 = (
+        args.expected_notebook_sha256.strip().lower()
+        if args.expected_notebook_sha256 is not None
+        else None
+    )
+    if expected_notebook_sha256 is not None and (
+        len(expected_notebook_sha256) != 64
+        or any(
+            character not in "0123456789abcdef"
+            for character in expected_notebook_sha256
+        )
+    ):
+        raise ValueError(
+            "--expected-notebook-sha256 must be exactly 64 hexadecimal characters"
+        )
+    notebook_sha256 = None
+    if expected_notebook_sha256 is not None:
+        notebook_sha256 = file_sha256(args.notebook)
+        if notebook_sha256 != expected_notebook_sha256:
+            raise RuntimeError(
+                "Notebook SHA256 mismatch: "
+                f"expected {expected_notebook_sha256}, got {notebook_sha256}"
+            )
+
+    deepcenter_checkpoint_sha256 = None
+    if args.public_v40_parity:
+        deepcenter_checkpoint_sha256 = file_sha256(
+            args.deepcenter_checkpoint
+        )
+        if (
+            deepcenter_checkpoint_sha256
+            != PUBLIC_V40_DEEPCENTER_SHA256
+        ):
+            raise RuntimeError(
+                "Public-v40 DeepCenter SHA256 mismatch: "
+                f"expected {PUBLIC_V40_DEEPCENTER_SHA256}, "
+                f"got {deepcenter_checkpoint_sha256}"
+            )
+
     if args.output_dir.exists():
         raise FileExistsError(f"Refusing to overwrite {args.output_dir}")
     args.output_dir.mkdir(parents=True)
@@ -812,10 +999,15 @@ def main() -> None:
         args.e000_motion_control,
         args.preilp_motion_sweep,
         args.preilp_motion_bonus,
+        args.public_v40_parity,
     )
     deepcenter_bundle = (
-        load_deepcenter_bundle(namespace, args.deepcenter_checkpoint)
-        if args.deepcenter_control
+        load_deepcenter_bundle(
+            namespace,
+            args.deepcenter_checkpoint,
+            expected_epoch=500 if args.public_v40_parity else 0,
+        )
+        if deepcenter_mode
         else None
     )
 
@@ -858,10 +1050,13 @@ def main() -> None:
     for writer in writers.values():
         writer.writeheader()
 
+    if notebook_sha256 is None:
+        notebook_sha256 = file_sha256(args.notebook)
+
     row_ids = {name: 0 for name in variant_specs}
     report: dict[str, object] = {
         "notebook": str(args.notebook.resolve()),
-        "notebook_sha256": file_sha256(args.notebook),
+        "notebook_sha256": notebook_sha256,
         "e000_only": args.e000_only,
         "max_outdegree": args.max_outdegree,
         "calibrated_rule_sweep": args.calibrated_rule_sweep,
@@ -877,14 +1072,33 @@ def main() -> None:
             else None
         ),
         "deepcenter_checkpoint_sha256": (
-            file_sha256(args.deepcenter_checkpoint)
-            if args.deepcenter_checkpoint is not None
-            else None
+            deepcenter_checkpoint_sha256
+            if deepcenter_checkpoint_sha256 is not None
+            else (
+                file_sha256(args.deepcenter_checkpoint)
+                if args.deepcenter_checkpoint is not None
+                else None
+            )
         ),
         "datasets": [],
         "variant_specs": variant_specs,
         "variants": {name: {} for name in variant_specs},
     }
+    if args.public_v40_parity:
+        report["public_v40_parity"] = True
+        report["validation_mode"] = "public_v40_parity"
+        report["expected_notebook_sha256"] = expected_notebook_sha256
+        report["source_manifest"] = {
+            "mode": "public_v40_parity",
+            "notebook_sha256": notebook_sha256,
+            "expected_notebook_sha256": expected_notebook_sha256,
+            "deepcenter_checkpoint_sha256": (
+                deepcenter_checkpoint_sha256
+            ),
+            "expected_deepcenter_checkpoint_sha256": (
+                PUBLIC_V40_DEEPCENTER_SHA256
+            ),
+        }
     try:
         for index, baseline_path in enumerate(baseline_paths, start=1):
             dataset = baseline_path.stem

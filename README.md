@@ -29,13 +29,21 @@ alphas were selected after observing embryo-group results, this evidence has
 explicit post-hoc overfitting risk and is not presented as a public
 leaderboard improvement.
 
+The offline validator also supports an exact, externally pinned parity check
+for Pilkwang Kim's public two-seed Notebook v40. Supplying
+`--expected-notebook-sha256` makes that mode fail closed on the Notebook
+source, while the public-v40 DeepCenter checkpoint is always verified before
+the original postprocessor is loaded. The mode is separate from the E022
+submission Notebook and does not change the public-score claims above.
+
 See [NOTICE.md](NOTICE.md) before reusing the notebook.
 
 ## Public Files
 
 - `kaggle/biohub_clean_baseline.ipynb`: complete executable notebook.
 - `kaggle/kernel-metadata.json`: Kaggle kernel configuration.
-- `kaggle/validate_e006_postprocess.py`: offline controlled-variant validator.
+- `kaggle/validate_e006_postprocess.py`: offline controlled-variant validator,
+  including the externally pinned public-v40 parity mode.
 - `kaggle/audit_deepcenter_rescue.py`: sparse-label detector-complement audit.
 - `kaggle/run_dual_seed_control.py`: pinned independent-seed inference control
   with optional pre-ILP graph export and guarded edge-logit TTA.
