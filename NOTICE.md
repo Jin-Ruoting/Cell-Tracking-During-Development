@@ -9,16 +9,16 @@
 - Upstream notebook SHA256:
   `b754eaffca194e1b1ebbf5aa6471016996313eea1f18af4ff94316df749a2684`
 
-The current E022 revision preserves the verified E000 detector, spatial D4
-test-time augmentation, ILP lineage construction, and graph postprocessing.
-It applies the same calibrated independent-seed detector/link ensemble to both
-supported embryo prefixes, using detection alpha `0.65` for `44b6` and
-`0.475` for `6bba`, followed by strict graph validation. All project code
-required by the candidate kernel is embedded in the notebook. Users remain
-responsible for complying with the competition rules and the terms attached
-to upstream datasets and artifacts.
+The current E025 revision starts from the author's verified E016 public
+submission `54972789` at `0.908`. It preserves the spatial D4 detector,
+lineage construction, and graph-validation framework while applying a global
+independent-seed detection alpha of `0.475`, ILP disappearance weight `1.5`,
+relaxed motion gate `10.0 um`, and center confirmation of long synthetic-gap
+midpoints. All project code required by the candidate kernel is embedded in
+the notebook. Users remain responsible for complying with the competition
+rules and the terms attached to upstream datasets and artifacts.
 
-The E022 notebook and `kaggle/run_dual_seed_control.py` adapt the guarded
+The E025 notebook and `kaggle/run_dual_seed_control.py` adapt the guarded
 independent-seed inference patch from:
 
 - Title: `Biohub Cell Tracking: Two Seeds Logit Blend`
@@ -30,9 +30,9 @@ independent-seed inference patch from:
   `70e0c300ceae3cd7ee2cf1650c4a5f74463543e3aae1b486ba5f729a76281656`
 
 The original reference notebook is not redistributed in this repository.
-Derived dual-seed patch logic is embedded in the E022 notebook. The control
-applies the verified reference patch only to a temporary copy of the public
-support source, and both paths verify the primary and secondary model-weight
+Derived dual-seed patch logic is embedded in E025. The control applies the
+verified reference patch only to a temporary copy of the public support
+source, and both paths verify the primary and secondary model-weight
 checksums.
 
 The optional parity mode in `kaggle/validate_e006_postprocess.py` targets a
@@ -40,6 +40,8 @@ later state of the same public Notebook:
 
 - Version: `40`
 - Kaggle run: `337798568`
+- Pinned URL:
+  https://www.kaggle.com/code/pilkwang/biohub-cell-tracking-two-seeds-logit-blend?scriptVersionId=337798568
 - Reference state observed: 2026-07-27
 - Reference notebook SHA256:
   `e75c2c384294c8e151993b426e7739b16a4646f6cf9bb23dd448fc78cd230e50`
@@ -49,6 +51,13 @@ external Notebook and can fail closed against its SHA256. Its exact parity arm
 also uses the public DeepCenter epoch-500 checkpoint at SHA256
 `8164d1ffa07f87e0506027a0392edeab7939a32bd5e3f756377c0d72885cf127`;
 neither that model nor its dataset is included here.
+
+Pilkwang Kim's pinned v40 run `337798568`, submission `54969360`, publicly
+scored `0.912`. E025 integrates its global blend and center-confirmed
+synthetic-gap settings over the author's verified `0.908` baseline. It also
+adds fail-closed artifact checks and retains a local per-source safe-division
+guard. The public v40 score is therefore a method reference, not a score claim
+for E025; E025 must be evaluated through its own competition submission.
 
 The optional edge-logit TTA control in `kaggle/run_dual_seed_control.py` is
 informed by a second public Pilkwang Kim notebook:
@@ -63,7 +72,7 @@ informed by a second public Pilkwang Kim notebook:
 That reference notebook is not redistributed. The runner verifies an external
 copy by SHA256 and independently integrates raw edge-logit aggregation into
 the existing dual-seed control. The option is disabled by default and is not
-part of the E022 notebook.
+part of the E025 notebook.
 
 `kaggle/audit_hoct_rerank.py` is a read-only compatibility and edge-ranking
 audit for the Higher-Order Cell Tracking Transformer (HOCT):

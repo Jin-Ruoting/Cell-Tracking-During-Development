@@ -5,36 +5,43 @@ Reproducible public notebook for the Kaggle research competition
 
 The verified E000 reference achieved a clean public score of `0.908` without
 metric exploits on 2026-07-24. The experimental E016 dual-seed candidate also
-scored `0.908`; it did not improve the leaderboard baseline. The current E022
-notebook is an offline-confirmed, post-hoc candidate and has no public score
-yet.
+scored `0.908`; it did not improve the leaderboard baseline. The current E025
+notebook is a leaderboard-verification candidate and has no public score yet.
+Pilkwang Kim's pinned public v40 run scored `0.912`; that score is an
+attributed method reference, not an E025 result.
 
 ## Method
 
-The current E022 notebook applies the primary model and an independently
-trained temporal model to both supported embryo domains. It uses calibrated
-detection-blend alpha `0.65` for `44b6` and `0.475` for `6bba`, with the same
-low-margin link consensus, spatial D4 detection TTA, ILP settings, and exact
-E000 graph postprocessing. Unknown embryo prefixes fail closed.
+E025 starts from the author's verified E016 `0.908` submission. It applies the
+primary model and an independently trained temporal model to every hidden
+dataset with global detection-blend alpha `0.475`, low-margin link consensus,
+spatial D4 detection TTA, ILP disappearance weight `1.5`, and a relaxed motion
+gate of `10.0 um`. These settings and the center-confirmed synthetic-gap rule
+are adapted from
+[Pilkwang Kim's public v40 method](https://www.kaggle.com/code/pilkwang/biohub-cell-tracking-two-seeds-logit-blend?scriptVersionId=337798568)
+with explicit attribution.
 
 The output is rejected if it contains dangling or nonconsecutive edges,
 multiple parents, hub-like sources, or coordinates outside the image volume.
-Both model weights are verified by SHA256 before inference. Searched divisions
-and all label-dependent routes remain disabled.
+The primary, independent-seed, and DeepCenter weights are verified by SHA256;
+the DeepCenter checkpoint must also report epoch `500`. Only newly synthetic
+gap midpoints with endpoint span at least `8.5 um` are center-confirmed at
+threshold `0.25`. Observed or shorter-gap midpoints bypass that gate. E025
+retains a local per-source safe-division guard so repairs cannot create
+nonbinary lineages. Searched divisions and label-dependent routes remain
+disabled.
 
-On the frozen 64-video corpus, independently materialized E022 scored
-`0.9026472386`. It passed strict binary-lineage checks and improved both embryo
-groups and both embryo-balanced alternating halves over E000. Because the two
-alphas were selected after observing embryo-group results, this evidence has
-explicit post-hoc overfitting risk and is not presented as a public
-leaderboard improvement.
+This repository describes E025 as an attributed engineering integration over
+the verified `0.908` baseline, not as an independently invented `0.912`
+method. Its own leaderboard score must be established by its Kaggle
+submission.
 
 The offline validator also supports an exact, externally pinned parity check
 for Pilkwang Kim's public two-seed Notebook v40. Supplying
 `--expected-notebook-sha256` makes that mode fail closed on the Notebook
 source, while the public-v40 DeepCenter checkpoint is always verified before
-the original postprocessor is loaded. The mode is separate from the E022
-submission Notebook and does not change the public-score claims above.
+the original postprocessor is loaded. The parity mode is separate from E025,
+which retains the local binary-lineage guard.
 
 See [NOTICE.md](NOTICE.md) before reusing the notebook.
 
