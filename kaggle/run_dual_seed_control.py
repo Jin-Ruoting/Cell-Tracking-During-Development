@@ -23,6 +23,9 @@ from pathlib import Path
 REFERENCE_NOTEBOOK_SHA256 = (
     "70e0c300ceae3cd7ee2cf1650c4a5f74463543e3aae1b486ba5f729a76281656"
 )
+EDGE_TTA_REFERENCE_SHA256 = (
+    "fd4d166ef72afc8db2e191df6e7dad661b18151f6faf9fa303e97531b6de892c"
+)
 SUPPORT_PREDICTOR_SHA256 = (
     "c44e771ba5980b820f93091e03a303c25dfe8f3232e501f54dc9565731c234b9"
 )
@@ -36,6 +39,391 @@ PATCH_CELL_INDEX = 9
 PATCH_END_MARKER = "\ndef list_test_stems() -> list[str]:\n"
 VARIANTS = ("primary", "secondary", "blend")
 LINK_MODES = ("raw", "calibrated", "adaptive", "low_margin_consensus")
+EDGE_TTA_MODES = ("original", "pilkwang_legacy_d4", "corrected_d4")
+EDGE_TTA_IMPLEMENTATION_VERSION = "dual_seed_edge_tta_v1"
+LEGACY_EDGE_TTA_VIEWS = (
+    "identity",
+    "flip_x",
+    "flip_y",
+    "flip_xy",
+    "rot90",
+    "rot270",
+    "transpose",
+    "legacy_anti_transpose",
+)
+CORRECTED_EDGE_TTA_VIEWS = (
+    "identity",
+    "flip_x",
+    "flip_y",
+    "flip_xy",
+    "rot90",
+    "rot270",
+    "transpose",
+    "anti_transpose",
+)
+
+EDGE_TTA_HELPER_ANCHOR = "@torch.no_grad()\ndef predict_video("
+EDGE_TTA_HELPERS = """# --- dual_seed_edge_tta_v1 ---
+_EDGE_TTA_VIEW_ORDER = (
+    "identity", "flip_x", "flip_y", "flip_xy",
+    "rot90", "rot270", "transpose",
+    "legacy_anti_transpose", "anti_transpose",
+)
+_LEGACY_PSEUDO_D4 = (
+    "identity", "flip_x", "flip_y", "flip_xy",
+    "rot90", "rot270", "transpose", "legacy_anti_transpose",
+)
+_CORRECTED_D4 = (
+    "identity", "flip_x", "flip_y", "flip_xy",
+    "rot90", "rot270", "transpose", "anti_transpose",
+)
+
+
+def _edge_tta_names(mode: str) -> tuple[str, ...]:
+    mode = mode.strip().lower()
+    if mode == "original":
+        return ("identity",)
+    if mode == "pilkwang_legacy_d4":
+        return _LEGACY_PSEUDO_D4
+    if mode == "corrected_d4":
+        return _CORRECTED_D4
+    raise ValueError(f"Unsupported edge TTA mode: {mode!r}")
+
+
+def _apply_edge_xy_tta(tensor: torch.Tensor, name: str) -> torch.Tensor:
+    if name == "identity":
+        return tensor
+    if name == "flip_x":
+        return tensor.flip((-1,))
+    if name == "flip_y":
+        return tensor.flip((-2,))
+    if name == "flip_xy":
+        return tensor.flip((-2, -1))
+    if name == "rot90":
+        return torch.rot90(tensor, 1, dims=(-2, -1))
+    if name == "rot270":
+        return torch.rot90(tensor, 3, dims=(-2, -1))
+    if name == "transpose":
+        return tensor.transpose(-1, -2)
+    if name == "legacy_anti_transpose":
+        return torch.rot90(tensor, 1, dims=(-2, -1)).transpose(-1, -2)
+    if name == "anti_transpose":
+        return tensor.transpose(-1, -2).flip((-2, -1))
+    raise ValueError(f"Unsupported edge TTA transform: {name!r}")
+
+
+def _invert_edge_xy_tta(tensor: torch.Tensor, name: str) -> torch.Tensor:
+    if name in {
+        "identity", "flip_x", "flip_y", "flip_xy",
+        "transpose", "anti_transpose",
+    }:
+        return _apply_edge_xy_tta(tensor, name)
+    if name == "rot90":
+        return torch.rot90(tensor, -1, dims=(-2, -1))
+    if name == "rot270":
+        return torch.rot90(tensor, 1, dims=(-2, -1))
+    if name == "legacy_anti_transpose":
+        return torch.rot90(
+            tensor.transpose(-1, -2), -1, dims=(-2, -1)
+        )
+    raise ValueError(f"Unsupported edge TTA transform: {name!r}")
+
+
+def _ordered_edge_tta_union(*groups: tuple[str, ...]) -> tuple[str, ...]:
+    requested = set().union(*(set(group) for group in groups))
+    unknown = requested - set(_EDGE_TTA_VIEW_ORDER)
+    if unknown:
+        raise ValueError(f"Unknown edge TTA transforms: {sorted(unknown)}")
+    return tuple(name for name in _EDGE_TTA_VIEW_ORDER if name in requested)
+
+
+def _edge_tta_weights(
+    names: tuple[str, ...],
+    original_weight: float | None,
+) -> dict[str, float]:
+    if not names or names[0] != "identity":
+        raise ValueError("Edge TTA views must start with identity")
+    if len(names) == 1:
+        return {"identity": 1.0}
+    if original_weight is None:
+        original_weight = 1.0 / len(names)
+    if not 0.0 < original_weight < 1.0:
+        raise ValueError("Edge TTA original weight must be in (0, 1)")
+    other_weight = (1.0 - original_weight) / (len(names) - 1)
+    return {
+        name: float(original_weight if name == "identity" else other_weight)
+        for name in names
+    }
+
+
+def _encode_aligned_xy_views(
+    model,
+    imgs: torch.Tensor,
+    feature_names: tuple[str, ...],
+    detection_names: tuple[str, ...],
+) -> tuple[dict[str, torch.Tensor], list[torch.Tensor] | None]:
+    names = _ordered_edge_tta_union(feature_names, detection_names)
+    if not names:
+        raise ValueError("At least one TTA view is required")
+    canonical_spatial = tuple(imgs.shape[-3:])
+    feature_name_set = set(feature_names)
+    detection_name_set = set(detection_names)
+    feature_maps_cpu: dict[str, torch.Tensor] = {}
+    detection_sums: list[torch.Tensor] | None = None
+
+    for name in names:
+        imgs_view = (
+            imgs if name == "identity" else _apply_edge_xy_tta(imgs, name)
+        )
+        feature_view, detection_view = model.encode(imgs_view)
+
+        if name in feature_name_set:
+            aligned_feature = _invert_edge_xy_tta(feature_view, name)
+            if tuple(aligned_feature.shape[-3:]) != canonical_spatial:
+                raise RuntimeError(
+                    f"Aligned feature shape mismatch for {name}: "
+                    f"expected {canonical_spatial}, "
+                    f"got {tuple(aligned_feature.shape[-3:])}"
+                )
+            feature_maps_cpu[name] = (
+                aligned_feature.detach().cpu().contiguous()
+            )
+
+        if name in detection_name_set:
+            aligned_detection = [
+                _invert_edge_xy_tta(frame_logits, name)
+                for frame_logits in detection_view
+            ]
+            for frame_logits in aligned_detection:
+                if tuple(frame_logits.shape[-3:]) != canonical_spatial:
+                    raise RuntimeError(
+                        f"Aligned detection shape mismatch for {name}: "
+                        f"expected {canonical_spatial}, "
+                        f"got {tuple(frame_logits.shape[-3:])}"
+                    )
+            if detection_sums is None:
+                detection_sums = aligned_detection
+            else:
+                if len(detection_sums) != len(aligned_detection):
+                    raise RuntimeError(
+                        "Detection TTA window-length mismatch"
+                    )
+                detection_sums = [
+                    total + current
+                    for total, current in zip(
+                        detection_sums,
+                        aligned_detection,
+                    )
+                ]
+
+        del feature_view, detection_view, imgs_view
+
+    missing = feature_name_set - set(feature_maps_cpu)
+    if missing:
+        raise RuntimeError(
+            f"Missing aligned feature views: {sorted(missing)}"
+        )
+    if detection_names:
+        if detection_sums is None:
+            raise RuntimeError("Detection TTA produced no logits")
+        detection_sums = [
+            logits / len(detection_names) for logits in detection_sums
+        ]
+    return feature_maps_cpu, detection_sums
+
+
+def _predict_edge_tta_logits(
+    model,
+    feature_maps_cpu: dict[str, torch.Tensor],
+    names: tuple[str, ...],
+    weights: dict[str, float],
+    f_idx: int,
+    p_coords_src: torch.Tensor,
+    p_coords_tgt: torch.Tensor,
+    p_pos_src: torch.Tensor,
+    p_pos_tgt: torch.Tensor,
+    p_mask_src: torch.Tensor,
+    p_mask_tgt: torch.Tensor,
+    ds_arr_t: torch.Tensor,
+) -> torch.Tensor:
+    device = p_coords_src.device
+    coords_src_cpu = p_coords_src.detach().cpu()
+    coords_tgt_cpu = p_coords_tgt.detach().cpu()
+    mask_src_cpu = p_mask_src.detach().cpu()
+    mask_tgt_cpu = p_mask_tgt.detach().cpu()
+    expected_shape = (
+        p_coords_src.shape[0],
+        p_coords_src.shape[1],
+        p_coords_tgt.shape[1],
+    )
+    result: torch.Tensor | None = None
+
+    for name in names:
+        aligned_map = feature_maps_cpu[name]
+        feature_src = model._index_features(
+            aligned_map[:, f_idx],
+            coords_src_cpu,
+            mask_src_cpu,
+        ).to(device)
+        feature_tgt = model._index_features(
+            aligned_map[:, f_idx + 1],
+            coords_tgt_cpu,
+            mask_tgt_cpu,
+        ).to(device)
+        logits = model.predict_edges(
+            feature_src,
+            feature_tgt,
+            p_coords_src * ds_arr_t,
+            p_coords_tgt * ds_arr_t,
+            p_pos_src,
+            p_pos_tgt,
+            p_mask_src,
+            p_mask_tgt,
+        )
+        if tuple(logits.shape) != expected_shape:
+            raise RuntimeError(
+                f"Edge TTA logit shape mismatch for {name}: "
+                f"expected {expected_shape}, got {tuple(logits.shape)}"
+            )
+        weighted = logits * weights[name]
+        result = weighted if result is None else result + weighted
+
+    if result is None:
+        raise RuntimeError("Edge TTA produced no transformer logits")
+    return result
+
+
+"""
+EDGE_TTA_ENCODE_START = "        unet_out, det_logits = model.encode(imgs)\n"
+EDGE_TTA_ENCODE_END = (
+    "        del imgs\n\n"
+    "        # --- Detect cells in each frame (dedup across windows) ---"
+)
+EDGE_TTA_ENCODE_REPLACEMENT = """        edge_tta_mode = os.environ.get(
+            "BIOHUB_EDGE_TTA_MODE", "original"
+        ).strip()
+        edge_names = _edge_tta_names(edge_tta_mode)
+        edge_original_weight_text = os.environ.get(
+            "BIOHUB_EDGE_TTA_ORIGINAL_WEIGHT", ""
+        ).strip()
+        edge_original_weight = (
+            float(edge_original_weight_text)
+            if edge_original_weight_text
+            else None
+        )
+        edge_weights = _edge_tta_weights(
+            edge_names,
+            edge_original_weight,
+        )
+        det_names = (
+            _LEGACY_PSEUDO_D4 if cfg.det_tta else ("identity",)
+        )
+        primary_maps, det_logits = _encode_aligned_xy_views(
+            model,
+            imgs,
+            edge_names,
+            det_names,
+        )
+        if det_logits is None:
+            raise RuntimeError("Primary detection TTA produced no logits")
+
+        secondary_maps = None
+        if secondary_model is not None:
+            secondary_det_names = (
+                det_names if secondary_detection_weight > 0.0 else ()
+            )
+            secondary_maps, secondary_det_logits = (
+                _encode_aligned_xy_views(
+                    secondary_model,
+                    imgs,
+                    edge_names,
+                    secondary_det_names,
+                )
+            )
+
+            if secondary_detection_weight > 0.0:
+                if secondary_det_logits is None:
+                    raise RuntimeError(
+                        "Secondary detection TTA produced no logits"
+                    )
+                for f in range(W):
+                    primary_det = det_logits[f]
+                    secondary_det = secondary_det_logits[f]
+                    primary_mean = primary_det.mean()
+                    secondary_mean = secondary_det.mean()
+                    primary_scale = primary_det.float().std(
+                        unbiased=False
+                    ).clamp_min(1e-4)
+                    secondary_scale = secondary_det.float().std(
+                        unbiased=False
+                    ).clamp_min(1e-4)
+                    scale_ratio = (
+                        primary_scale / secondary_scale
+                    ).clamp(0.5, 2.0)
+                    secondary_det_aligned = (
+                        (secondary_det - secondary_mean) * scale_ratio
+                        + primary_mean
+                    )
+                    det_logits[f] = (
+                        (1.0 - secondary_detection_weight) * primary_det
+                        + secondary_detection_weight
+                        * secondary_det_aligned
+                    )
+
+            del secondary_det_logits
+
+"""
+EDGE_TTA_EDGE_START = (
+    "            unet_feat_src = model._index_features(\n"
+)
+EDGE_TTA_EDGE_END = '                if secondary_link_mode == "raw":\n'
+EDGE_TTA_EDGE_REPLACEMENT = """            edge_logits_pair = (
+                _predict_edge_tta_logits(
+                    model,
+                    primary_maps,
+                    edge_names,
+                    edge_weights,
+                    f_idx,
+                    p_coords_src,
+                    p_coords_tgt,
+                    p_pos_src,
+                    p_pos_tgt,
+                    p_mask_src,
+                    p_mask_tgt,
+                    ds_arr_t,
+                )
+            )
+
+            if secondary_model is not None:
+                if secondary_maps is None:
+                    raise RuntimeError(
+                        "Secondary model is loaded but its feature maps "
+                        "are missing"
+                    )
+                secondary_logits_pair = _predict_edge_tta_logits(
+                    secondary_model,
+                    secondary_maps,
+                    edge_names,
+                    edge_weights,
+                    f_idx,
+                    p_coords_src,
+                    p_coords_tgt,
+                    p_pos_src,
+                    p_pos_tgt,
+                    p_mask_src,
+                    p_mask_tgt,
+                    ds_arr_t,
+                )
+
+"""
+EDGE_TTA_CLEANUP_ANCHOR = """        del unet_out
+        if secondary_unet_out is not None:
+            del secondary_unet_out
+"""
+EDGE_TTA_CLEANUP_REPLACEMENT = """        del primary_maps
+        if secondary_maps is not None:
+            del secondary_maps
+"""
 
 
 def parse_args() -> argparse.Namespace:
@@ -73,6 +461,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--blend-mix-temperature", type=float, default=1.0)
     parser.add_argument("--blend-low-margin-max", type=float, default=0.35)
     parser.add_argument("--blend-edge-threshold", type=float, default=0.48)
+    parser.add_argument(
+        "--edge-tta-reference-notebook",
+        type=Path,
+    )
+    parser.add_argument(
+        "--edge-tta-mode",
+        choices=EDGE_TTA_MODES,
+        default="original",
+    )
+    parser.add_argument("--edge-tta-original-weight", type=float)
     parser.add_argument("--export-preilp", action="store_true")
     parser.add_argument(
         "--expected-reference-sha256",
@@ -110,9 +508,100 @@ def notebook_source(cell: dict[str, object]) -> str:
     return str(source)
 
 
+def edge_tta_views(mode: str) -> tuple[str, ...]:
+    if mode == "original":
+        return ("identity",)
+    if mode == "pilkwang_legacy_d4":
+        return LEGACY_EDGE_TTA_VIEWS
+    if mode == "corrected_d4":
+        return CORRECTED_EDGE_TTA_VIEWS
+    raise ValueError(f"Unsupported edge TTA mode: {mode!r}")
+
+
+def edge_tta_view_weights(
+    mode: str,
+    original_weight: float | None,
+) -> dict[str, float]:
+    views = edge_tta_views(mode)
+    if len(views) == 1:
+        return {"identity": 1.0}
+    if original_weight is None:
+        original_weight = 1.0 / len(views)
+    if not 0.0 < original_weight < 1.0:
+        raise ValueError("--edge-tta-original-weight must be in (0, 1)")
+    other_weight = (1.0 - original_weight) / (len(views) - 1)
+    return {
+        view: float(
+            original_weight if view == "identity" else other_weight
+        )
+        for view in views
+    }
+
+
+def replace_between_once(
+    source: str,
+    start: str,
+    end: str,
+    replacement: str,
+    label: str,
+) -> str:
+    start_count = source.count(start)
+    end_count = source.count(end)
+    if start_count != 1 or end_count != 1:
+        raise RuntimeError(
+            f"{label} patch anchors must occur exactly once: "
+            f"start={start_count}, end={end_count}"
+        )
+    start_index = source.index(start)
+    end_index = source.index(end, start_index + len(start))
+    return source[:start_index] + replacement + source[end_index:]
+
+
+def apply_edge_tta_patch(predictor_source: str) -> str:
+    if EDGE_TTA_IMPLEMENTATION_VERSION in predictor_source:
+        raise RuntimeError("Edge TTA predictor patch is already present")
+    helper_count = predictor_source.count(EDGE_TTA_HELPER_ANCHOR)
+    if helper_count != 1:
+        raise RuntimeError(
+            "Edge TTA helper anchor must occur exactly once: "
+            f"found {helper_count}"
+        )
+    predictor_source = predictor_source.replace(
+        EDGE_TTA_HELPER_ANCHOR,
+        EDGE_TTA_HELPERS + EDGE_TTA_HELPER_ANCHOR,
+        1,
+    )
+    predictor_source = replace_between_once(
+        predictor_source,
+        EDGE_TTA_ENCODE_START,
+        EDGE_TTA_ENCODE_END,
+        EDGE_TTA_ENCODE_REPLACEMENT,
+        "Edge TTA encode",
+    )
+    predictor_source = replace_between_once(
+        predictor_source,
+        EDGE_TTA_EDGE_START,
+        EDGE_TTA_EDGE_END,
+        EDGE_TTA_EDGE_REPLACEMENT,
+        "Edge TTA association",
+    )
+    cleanup_count = predictor_source.count(EDGE_TTA_CLEANUP_ANCHOR)
+    if cleanup_count != 1:
+        raise RuntimeError(
+            "Edge TTA cleanup anchor must occur exactly once: "
+            f"found {cleanup_count}"
+        )
+    return predictor_source.replace(
+        EDGE_TTA_CLEANUP_ANCHOR,
+        EDGE_TTA_CLEANUP_REPLACEMENT,
+        1,
+    )
+
+
 def apply_reference_patch(
     reference_notebook: Path,
     temporary_repo: Path,
+    edge_tta_mode: str,
     export_preilp: bool,
 ) -> str:
     notebook = json.loads(reference_notebook.read_text(encoding="utf-8"))
@@ -139,6 +628,9 @@ def apply_reference_patch(
         temporary_repo / "scripts" / "predict_unet_transformer.py"
     )
     predictor_source = predictor.read_text(encoding="utf-8")
+    if edge_tta_mode != "original":
+        predictor_source = apply_edge_tta_patch(predictor_source)
+        predictor.write_text(predictor_source, encoding="utf-8")
     if export_preilp:
         marker = "        graph = build_graph(coords, edges)\n"
         if predictor_source.count(marker) != 1:
@@ -216,8 +708,23 @@ def variant_environment(
         "BIOHUB_SECONDARY_MIX_TEMPERATURE",
         "BIOHUB_SECONDARY_LOW_MARGIN_MAX",
         "BIOHUB_DUAL_SEED_EDGE_THRESHOLD",
+        "BIOHUB_EDGE_TTA_MODE",
+        "BIOHUB_EDGE_TTA_ORIGINAL_WEIGHT",
     ):
         env.pop(key, None)
+    if args.edge_tta_mode != "original":
+        edge_weights = edge_tta_view_weights(
+            args.edge_tta_mode,
+            args.edge_tta_original_weight,
+        )
+        env.update(
+            {
+                "BIOHUB_EDGE_TTA_MODE": args.edge_tta_mode,
+                "BIOHUB_EDGE_TTA_ORIGINAL_WEIGHT": str(
+                    edge_weights["identity"]
+                ),
+            }
+        )
     if variant == "blend":
         env.update(
             {
@@ -300,6 +807,7 @@ def prepare_variant(
     patched_sha256 = apply_reference_patch(
         args.reference_notebook,
         temporary_repo,
+        args.edge_tta_mode,
         args.export_preilp,
     )
     preilp_dir = variant_root / "preilp"
@@ -348,10 +856,33 @@ def main() -> None:
         raise ValueError("--blend-low-margin-max must be in (0, 1]")
     if not 0.0 < args.blend_edge_threshold < 1.0:
         raise ValueError("--blend-edge-threshold must be in (0, 1)")
+    if (
+        args.edge_tta_mode == "original"
+        and args.edge_tta_original_weight is not None
+    ):
+        raise ValueError(
+            "--edge-tta-original-weight requires a non-original "
+            "--edge-tta-mode"
+        )
+    edge_views = edge_tta_views(args.edge_tta_mode)
+    edge_weights = edge_tta_view_weights(
+        args.edge_tta_mode,
+        args.edge_tta_original_weight,
+    )
+    if (
+        args.edge_tta_mode != "original"
+        and args.edge_tta_reference_notebook is None
+    ):
+        raise ValueError(
+            "--edge-tta-reference-notebook is required for non-original "
+            "edge TTA"
+        )
     if args.output_dir.exists():
         raise FileExistsError(f"Refusing to overwrite {args.output_dir}")
 
     require_file(args.reference_notebook)
+    if args.edge_tta_reference_notebook is not None:
+        require_file(args.edge_tta_reference_notebook)
     require_file(args.primary_weights)
     require_file(args.secondary_weights)
     require_file(args.primary_weights.parent / "config.json")
@@ -367,6 +898,12 @@ def main() -> None:
         args.reference_notebook,
         args.expected_reference_sha256,
     )
+    edge_tta_reference_sha256 = None
+    if args.edge_tta_reference_notebook is not None:
+        edge_tta_reference_sha256 = verify_sha256(
+            args.edge_tta_reference_notebook,
+            EDGE_TTA_REFERENCE_SHA256,
+        )
     primary_sha256 = verify_sha256(
         args.primary_weights,
         PRIMARY_WEIGHT_SHA256,
@@ -494,6 +1031,33 @@ def main() -> None:
             "mix_temperature": args.blend_mix_temperature,
             "low_margin_max": args.blend_low_margin_max,
             "edge_threshold": args.blend_edge_threshold,
+        },
+        "edge_tta": {
+            "mode": args.edge_tta_mode,
+            "implementation_version": EDGE_TTA_IMPLEMENTATION_VERSION,
+            "reference_notebook": (
+                str(args.edge_tta_reference_notebook.resolve())
+                if args.edge_tta_reference_notebook is not None
+                else None
+            ),
+            "reference_notebook_sha256": edge_tta_reference_sha256,
+            "models": "all_loaded",
+            "aggregation_domain": "raw_edge_logits",
+            "aggregation_stage": "per_seed_before_seed_calibration",
+            "node_policy": "shared_canonical_detection_nodes",
+            "feature_alignment": "inverse_map_to_canonical_zyx",
+            "view_names": list(edge_views),
+            "view_weights": edge_weights,
+            "requested_view_count": len(edge_views),
+            "unique_spatial_view_count": (
+                7
+                if args.edge_tta_mode == "pilkwang_legacy_d4"
+                else len(edge_views)
+            ),
+            "legacy_anti_transpose_duplicates_flip_x": (
+                args.edge_tta_mode == "pilkwang_legacy_d4"
+            ),
+            "detection_tta_changed": False,
         },
         "elapsed_seconds": time.time() - started_at,
         "results": results,

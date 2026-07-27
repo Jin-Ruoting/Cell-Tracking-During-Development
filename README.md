@@ -37,7 +37,7 @@ See [NOTICE.md](NOTICE.md) before reusing the notebook.
 - `kaggle/validate_e006_postprocess.py`: offline controlled-variant validator.
 - `kaggle/audit_deepcenter_rescue.py`: sparse-label detector-complement audit.
 - `kaggle/run_dual_seed_control.py`: pinned independent-seed inference control
-  with optional pre-ILP graph export.
+  with optional pre-ILP graph export and guarded edge-logit TTA.
 - `kaggle/audit_hoct_rerank.py`: pinned HOCT edge-ranking compatibility audit.
 - `kaggle/audit_e000_error_budget.py`: official-matcher error-budget audit.
 - `NOTICE.md`: attribution and reuse notice.

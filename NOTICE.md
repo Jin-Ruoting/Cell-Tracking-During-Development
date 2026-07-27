@@ -34,6 +34,21 @@ to the `6bba` route. The control applies the verified reference patch only to a
 temporary copy of the public support source, and both paths verify the primary
 and secondary model-weight checksums.
 
+The optional edge-logit TTA control in `kaggle/run_dual_seed_control.py` is
+informed by a second public Pilkwang Kim notebook:
+
+- Title: `Biohub Cell Tracking: Blend Preprocessings`
+- URL:
+  https://www.kaggle.com/code/pilkwang/biohub-cell-tracking-blend-preprocessings
+- Reference state observed: 2026-07-27
+- Reference notebook SHA256:
+  `fd4d166ef72afc8db2e191df6e7dad661b18151f6faf9fa303e97531b6de892c`
+
+That reference notebook is not redistributed. The runner verifies an external
+copy by SHA256 and independently integrates raw edge-logit aggregation into
+the existing dual-seed control. The option is disabled by default and is not
+part of the published E016 result.
+
 `kaggle/audit_hoct_rerank.py` is a read-only compatibility and edge-ranking
 audit for the Higher-Order Cell Tracking Transformer (HOCT):
 
