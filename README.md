@@ -6,9 +6,11 @@ Reproducible public notebook for the Kaggle research competition
 The verified E000 reference achieved a clean public score of `0.908` without
 metric exploits on 2026-07-24. The experimental E016 dual-seed candidate also
 scored `0.908`; it did not improve the leaderboard baseline. The current E025
-notebook is a leaderboard-verification candidate and has no public score yet.
-Pilkwang Kim's pinned public v40 run scored `0.912`; that score is an
-attributed method reference, not an E025 result.
+notebook is published as
+[Kaggle Kernel version 1](https://www.kaggle.com/code/buaaauto/biohub-e025-guarded-dual-seed-center-gaps)
+and is awaiting its own public score. Pilkwang Kim's pinned public v40 run
+scored `0.912`; that score is an attributed method reference, not an E025
+result.
 
 ## Method
 
