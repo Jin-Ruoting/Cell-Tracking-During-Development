@@ -3,30 +3,31 @@
 Reproducible public notebook for the Kaggle research competition
 [Biohub - Cell Tracking During Development](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development).
 
-The verified E000 reference achieved a clean public score of `0.908` and a
-top-10% result without metric exploits on 2026-07-24. The experimental E016
-dual-seed candidate also scored `0.908`; it did not improve the leaderboard
-baseline.
+The verified E000 reference achieved a clean public score of `0.908` without
+metric exploits on 2026-07-24. The experimental E016 dual-seed candidate also
+scored `0.908`; it did not improve the leaderboard baseline. The current E022
+notebook is an offline-confirmed, post-hoc candidate and has no public score
+yet.
 
 ## Method
 
-The current E016 notebook preserves E000's detector, spatial D4 test-time
-augmentation, ILP settings, graph postprocessing, and conservative short-track
-rescue for every `44b6` video. For `6bba` videos only, it combines the primary
-model with an independently trained temporal model through calibrated
-detection blending and low-margin link consensus.
+The current E022 notebook applies the primary model and an independently
+trained temporal model to both supported embryo domains. It uses calibrated
+detection-blend alpha `0.65` for `44b6` and `0.475` for `6bba`, with the same
+low-margin link consensus, spatial D4 detection TTA, ILP settings, and exact
+E000 graph postprocessing. Unknown embryo prefixes fail closed.
 
 The output is rejected if it contains dangling or nonconsecutive edges,
 multiple parents, hub-like sources, or coordinates outside the image volume.
 Both model weights are verified by SHA256 before inference. Searched divisions
 and all label-dependent routes remain disabled.
 
-E016 improved a 26-video screen by `+0.0094`. On a disjoint 64-video
-confirmation corpus, it improved the pinned official score from `0.8947` to
-`0.8992` (`+0.0045`), stayed exactly equal to primary on all `44b6` rows, and
-improved both prespecified `6bba` halves. These offline gains did not transfer
-to the public leaderboard: E016 tied E000 at `0.908` and is not a promoted
-replacement for the clean baseline.
+On the frozen 64-video corpus, independently materialized E022 scored
+`0.9026472386`. It passed strict binary-lineage checks and improved both embryo
+groups and both embryo-balanced alternating halves over E000. Because the two
+alphas were selected after observing embryo-group results, this evidence has
+explicit post-hoc overfitting risk and is not presented as a public
+leaderboard improvement.
 
 See [NOTICE.md](NOTICE.md) before reusing the notebook.
 
