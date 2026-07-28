@@ -20,6 +20,13 @@ now independently achieved a verified public score of `0.912`.
 The E025 score belongs to this repository's submitted Kernel version 1:
 [biohub-e025-guarded-dual-seed-center-gaps](https://www.kaggle.com/code/buaaauto/biohub-e025-guarded-dual-seed-center-gaps?scriptVersionId=338254608).
 
+## Public Leaderboard Snapshot
+
+![Kaggle public leaderboard snapshot showing Ruoting at rank 135 with a public score of 0.912](assets/kaggle-public-leaderboard-2026-07-28.png)
+
+*Captured on 2026-07-28. The leaderboard is dynamic; this screenshot records
+the displayed rank and score at capture time.*
+
 ## Shared Tracking Pipeline
 
 Both method lines use pretrained inference artifacts rather than training
