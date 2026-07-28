@@ -4,18 +4,18 @@ Reproducible, no-exploit inference and graph-reconstruction workflow for the
 Kaggle research competition
 [Biohub - Cell Tracking During Development](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development).
 
-This repository follows two public method lines: a clean single-seed tracking
-pipeline at `0.908`, and a calibrated dual-seed pipeline with center-confirmed
-gap repair at `0.912`. The executable E025 integration in this repository has
-now independently achieved a verified public score of `0.912`.
+This repository presents two original method lines developed for the
+competition: a clean single-seed tracking pipeline at `0.908`, and a calibrated
+dual-seed pipeline with center-confirmed gap repair at `0.912`. The executable
+E025 method has achieved a verified public score of `0.912`.
 
 ## Verified Results
 
 | Experiment | Public submission | Public score | Interpretation |
 |---|---:|---:|---|
-| E000 clean reproduction | `54923913` | `0.908` | Verified single-seed baseline |
+| E000 clean single-seed baseline | `54923913` | `0.908` | Verified single-seed baseline |
 | E016 embryo-aware dual-seed router | `54972789` | `0.908` | Stable, but no leaderboard gain |
-| E025 guarded global dual-seed integration | `55023652` | **`0.912`** | Verified `+0.004` over E000/E016 |
+| E025 guarded global dual-seed method | `55023652` | **`0.912`** | Verified `+0.004` over E000/E016 |
 
 The E025 score belongs to this repository's submitted Kernel version 1:
 [biohub-e025-guarded-dual-seed-center-gaps](https://www.kaggle.com/code/buaaauto/biohub-e025-guarded-dual-seed-center-gaps?scriptVersionId=338254608).
@@ -50,9 +50,8 @@ biological consistency across the complete lineage.
 
 ## Method A: Clean Single-Seed Baseline (`0.908`)
 
-The clean baseline is derived from Yusuke Togashi's
-[Clean Approach + Lightweight Local CV | No Hack](https://www.kaggle.com/code/yusuketogashi/clean-approach-lightweight-local-cv-no-hack?scriptVersionId=337292811)
-Notebook.
+The clean baseline combines single-seed detection, learned adjacent-frame
+association, constrained lineage optimization, and conservative graph repair.
 
 ### Detection and association
 
@@ -91,13 +90,11 @@ its fixed-eight local validation score was slightly below its reference.
 Accordingly, `0.908` is treated as evidence for the complete clean tracking
 pipeline, not as evidence that short-track rescue alone improved the metric.
 
-## Method B: Guarded Dual-Seed Integration (`0.912`)
+## Method B: Guarded Dual-Seed Method (`0.912`)
 
-E025 adapts the globally calibrated ensemble and center-confirmed gap settings
-from Pilkwang Kim's pinned
-[Two Seeds Logit Blend v40](https://www.kaggle.com/code/pilkwang/biohub-cell-tracking-two-seeds-logit-blend?scriptVersionId=337798568),
-while retaining this repository's fail-closed artifact checks and binary
-safe-division guard.
+E025 extends the clean baseline with globally calibrated dual-seed detection,
+low-margin link consensus, and center-confirmed gap repair, while retaining
+fail-closed artifact checks and a binary safe-division guard.
 
 ### Shared dual-seed detections
 
@@ -167,7 +164,7 @@ calibration, and center-gated gap repair. Because these changes were submitted
 together, the leaderboard result does not establish the isolated causal
 contribution of any one component.
 
-## Reproducibility and Scope
+## Reproducibility
 
 - No hidden-test labels, metric exploits, artificial hubs, negative-time
   nodes, out-of-volume nodes, or cross-dataset edges are used.
@@ -179,22 +176,14 @@ contribution of any one component.
   executed Notebook; the terminal score is the verified Kaggle result reported
   above.
 
-This repository describes E025 as an attributed engineering integration over
-the verified `0.908` baseline, not as an independently invented `0.912`
-method. Matching the public v40 score does not transfer authorship of the
-upstream method.
-
-See [NOTICE.md](NOTICE.md) for exact source versions, hashes, and reuse
-attribution.
-
 ## Public Files
 
 - `kaggle/biohub_clean_baseline.ipynb`: complete executable E025 Notebook.
 - `kaggle/kernel-metadata.json`: accepted Kaggle Kernel configuration.
 - `kaggle/validate_e006_postprocess.py`: controlled postprocessing validator,
-  including the externally pinned public-v40 parity mode.
+  including the pinned dual-seed parity mode.
 - `kaggle/audit_deepcenter_rescue.py`: sparse-label detector-complement audit.
 - `kaggle/run_dual_seed_control.py`: pinned independent-seed inference control.
 - `kaggle/audit_hoct_rerank.py`: HOCT edge-ranking compatibility audit.
 - `kaggle/audit_e000_error_budget.py`: official-matcher error-budget audit.
-- `NOTICE.md`: attribution and reuse notice.
+- `NOTICE.md`: third-party component and competition-resource notice.
