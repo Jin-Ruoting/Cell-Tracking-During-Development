@@ -61,9 +61,11 @@ Pilkwang Kim's pinned v40 run `337798568`, submission `54969360`, publicly
 scored `0.912`. E025 integrates its global blend and center-confirmed
 synthetic-gap settings over this repository's verified `0.908` baseline. It
 also adds fail-closed artifact checks and retains a local per-source
-safe-division guard. The public v40 score is therefore a method reference, not
-a score claim for E025; E025 must be evaluated through its own competition
-submission.
+safe-division guard. E025 was evaluated through its own competition submission
+`55023652`, which independently achieved a public score of `0.912`. The
+matching displayed score does not transfer authorship of the upstream method;
+E025 remains an attributed engineering integration rather than a claim of
+independent invention.
 
 The optional edge-logit TTA control in `kaggle/run_dual_seed_control.py` is
 informed by a second public Pilkwang Kim notebook:
