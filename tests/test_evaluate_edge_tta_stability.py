@@ -210,9 +210,6 @@ class E000ReportTests(unittest.TestCase):
                 "variants": {
                     "e000_safe": {
                         name: {
-                            "duplicate_edges": 0,
-                            "dangling_edges": 0,
-                            "nonconsecutive_edges": 0,
                             "max_indegree": 1,
                             "max_outdegree": 2,
                             "nonbinary_sources": 0,

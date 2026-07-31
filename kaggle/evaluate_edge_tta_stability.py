@@ -314,10 +314,25 @@ def validate_topology_variant(
     for dataset, audit in per_movie.items():
         if not isinstance(audit, dict):
             raise TypeError(f"{label}: invalid audit for {dataset}")
+        optional_zero_counts = (
+            "duplicate_edges",
+            "dangling_edges",
+            "nonconsecutive_edges",
+        )
+        required_counts = {
+            "max_indegree",
+            "max_outdegree",
+            "nonbinary_sources",
+        }
+        if not required_counts <= set(audit):
+            raise RuntimeError(
+                f"{label}: topology fields missing for {dataset}"
+            )
         if (
-            int(audit.get("duplicate_edges", -1)) != 0
-            or int(audit.get("dangling_edges", -1)) != 0
-            or int(audit.get("nonconsecutive_edges", -1)) != 0
+            any(
+                key in audit and int(audit[key]) != 0
+                for key in optional_zero_counts
+            )
             or int(audit.get("max_indegree", -1)) > 1
             or int(audit.get("max_outdegree", -1)) > 2
             or int(audit.get("nonbinary_sources", -1)) != 0
