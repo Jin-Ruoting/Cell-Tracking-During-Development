@@ -150,7 +150,7 @@ def main() -> None:
         raise RuntimeError("Candidate pre-ILP and final movie sets differ")
     if not set(candidate_paths) <= set(control_paths):
         raise RuntimeError("Control pre-ILP directory is missing candidate movies")
-    names = sorted(control_paths)
+    names = sorted(candidate_paths)
     if len(names) != args.expected_count:
         raise RuntimeError(
             f"Expected {args.expected_count} movies, found {len(names)}"
