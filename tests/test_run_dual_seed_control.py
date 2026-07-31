@@ -80,6 +80,21 @@ class RetentionGuardPatchTests(unittest.TestCase):
         self.assertIn(RUNNER.EDGE_TTA_IMPLEMENTATION_VERSION, combined)
         self.assertIn(RUNNER.RETENTION_GUARD_IMPLEMENTATION_VERSION, combined)
 
+    def test_selective_edge_tta_is_gated_to_ambiguous_parent_columns(
+        self,
+    ) -> None:
+        compile(RUNNER.EDGE_TTA_HELPERS, "<edge-tta-helpers>", "exec")
+        replacement = RUNNER.EDGE_TTA_EDGE_REPLACEMENT
+
+        self.assertIn("_select_ambiguous_parent_rerank", replacement)
+        self.assertIn("primary_identity_logits_pair", replacement)
+        self.assertIn("primary_multiview_logits_pair", replacement)
+        self.assertIn("BIOHUB_PARENT_RERANK", replacement)
+        self.assertIn(
+            '"ambiguous_parent_consensus"',
+            RUNNER.EDGE_TTA_ENCODE_REPLACEMENT,
+        )
+
     def test_injected_policy_uses_strict_retention_boundary(self) -> None:
         namespace: dict[str, object] = {}
         exec(RUNNER.RETENTION_GUARD_HELPERS, namespace)
@@ -145,6 +160,51 @@ class RetentionDiagnosticsTests(unittest.TestCase):
             RUNNER.compare_retention_controls(control, candidate)
 
 
+class ParentRerankDiagnosticsTests(unittest.TestCase):
+    def write_log(self, text: str) -> Path:
+        temporary = tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            delete=False,
+        )
+        self.addCleanup(Path(temporary.name).unlink, missing_ok=True)
+        with temporary:
+            temporary.write(text)
+        return Path(temporary.name)
+
+    def test_parse_and_summarize_parent_rerank_records(self) -> None:
+        path = self.write_log(
+            "noise\n"
+            "BIOHUB_PARENT_RERANK\t44b6_a\t0\t1\t10\t4\t3\t7\t2\n"
+            "BIOHUB_PARENT_RERANK\t6bba_b\t1\t2\t8\t2\t1\t6\t1\n"
+        )
+
+        records = RUNNER.parse_parent_rerank_records(path)
+        summary = RUNNER.summarize_parent_rerank_records(records)
+
+        self.assertEqual(summary["frame_pairs"], 2)
+        self.assertEqual(summary["total_targets"], 18)
+        self.assertEqual(summary["ambiguous_targets"], 6)
+        self.assertEqual(summary["selected_targets"], 3)
+        self.assertAlmostEqual(summary["selected_fraction"], 1.0 / 6.0)
+
+    def test_parent_rerank_parser_rejects_invalid_or_duplicate_rows(
+        self,
+    ) -> None:
+        invalid = self.write_log(
+            "BIOHUB_PARENT_RERANK\t44b6_a\t0\t2\t10\t4\t3\t7\t2\n"
+        )
+        with self.assertRaisesRegex(RuntimeError, "invalid parent-rerank"):
+            RUNNER.parse_parent_rerank_records(invalid)
+
+        duplicate = self.write_log(
+            "BIOHUB_PARENT_RERANK\t44b6_a\t0\t1\t10\t4\t3\t7\t2\n"
+            "BIOHUB_PARENT_RERANK\t44b6_a\t0\t1\t10\t4\t3\t7\t2\n"
+        )
+        with self.assertRaisesRegex(RuntimeError, "duplicate parent-rerank"):
+            RUNNER.parse_parent_rerank_records(duplicate)
+
+
 class RetentionEnvironmentTests(unittest.TestCase):
     def test_guard_environment_is_the_only_blend_difference(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -198,6 +258,50 @@ class RetentionEnvironmentTests(unittest.TestCase):
             candidate["BIOHUB_DUAL_SEED_MIN_CANDIDATE_RETENTION"],
             "0.9",
         )
+
+    def test_selective_edge_tta_environment_is_explicit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = SimpleNamespace(
+                runtime_dir=root / "runtime",
+                output_dir=root / "output",
+                export_preilp=False,
+                edge_tta_mode="corrected_d4",
+                edge_tta_original_weight=0.5,
+                edge_tta_application="ambiguous_parent_consensus",
+                edge_tta_ambiguous_margin_max=0.35,
+                secondary_weights=root / "secondary.pth",
+                blend_edge_weight=0.15,
+                blend_detection_weight=0.475,
+                blend_link_mode="low_margin_consensus",
+                blend_mix_temperature=1.0,
+                blend_low_margin_max=0.35,
+                blend_edge_threshold=0.48,
+                guard_min_candidate_retention=0.90,
+            )
+
+            environment = RUNNER.variant_environment(
+                args,
+                "blend",
+                "0",
+                root / "repo",
+            )
+
+        self.assertEqual(
+            environment["BIOHUB_EDGE_TTA_MODE"],
+            "corrected_d4",
+        )
+        self.assertEqual(
+            environment["BIOHUB_EDGE_TTA_APPLICATION"],
+            "ambiguous_parent_consensus",
+        )
+        self.assertEqual(
+            environment["BIOHUB_EDGE_TTA_AMBIGUOUS_MARGIN_MAX"],
+            "0.35",
+        )
+        weights = RUNNER.edge_tta_view_weights("corrected_d4", 0.5)
+        self.assertAlmostEqual(weights["identity"], 0.5)
+        self.assertAlmostEqual(sum(weights.values()), 1.0)
 
 
 if __name__ == "__main__":

@@ -42,7 +42,9 @@ VARIANTS = ("primary", "secondary", "blend", "blend_guard")
 BLEND_VARIANTS = ("blend", "blend_guard")
 LINK_MODES = ("raw", "calibrated", "adaptive", "low_margin_consensus")
 EDGE_TTA_MODES = ("original", "pilkwang_legacy_d4", "corrected_d4")
-EDGE_TTA_IMPLEMENTATION_VERSION = "dual_seed_edge_tta_v1"
+EDGE_TTA_APPLICATIONS = ("global", "ambiguous_parent_consensus")
+EDGE_TTA_IMPLEMENTATION_VERSION = "dual_seed_edge_tta_v2"
+PARENT_RERANK_LOG_PREFIX = "BIOHUB_PARENT_RERANK\t"
 RETENTION_GUARD_IMPLEMENTATION_VERSION = (
     "dual_seed_frame_retention_guard_v1"
 )
@@ -90,7 +92,7 @@ CORRECTED_EDGE_TTA_VIEWS = (
 )
 
 EDGE_TTA_HELPER_ANCHOR = "@torch.no_grad()\ndef predict_video("
-EDGE_TTA_HELPERS = """# --- dual_seed_edge_tta_v1 ---
+EDGE_TTA_HELPERS = """# --- dual_seed_edge_tta_v2 ---
 _EDGE_TTA_VIEW_ORDER = (
     "identity", "flip_x", "flip_y", "flip_xy",
     "rot90", "rot270", "transpose",
@@ -320,6 +322,95 @@ def _predict_edge_tta_logits(
     return result
 
 
+def _select_ambiguous_parent_rerank(
+    primary_identity: torch.Tensor,
+    secondary_identity: torch.Tensor,
+    primary_multiview: torch.Tensor,
+    secondary_multiview: torch.Tensor,
+    margin_max: float,
+) -> tuple[torch.Tensor, torch.Tensor, dict[str, int]]:
+    expected_shape = tuple(primary_identity.shape)
+    if len(expected_shape) != 3 or expected_shape[0] != 1:
+        raise RuntimeError(
+            "Parent rerank expects logits shaped (1, n_src, n_tgt)"
+        )
+    for label, logits in (
+        ("secondary_identity", secondary_identity),
+        ("primary_multiview", primary_multiview),
+        ("secondary_multiview", secondary_multiview),
+    ):
+        if tuple(logits.shape) != expected_shape:
+            raise RuntimeError(
+                f"Parent rerank shape mismatch for {label}: "
+                f"expected {expected_shape}, got {tuple(logits.shape)}"
+            )
+    if not 0.0 < margin_max <= 1.0:
+        raise ValueError(
+            "BIOHUB_EDGE_TTA_AMBIGUOUS_MARGIN_MAX must be in (0, 1]"
+        )
+
+    n_src, n_tgt = expected_shape[1], expected_shape[2]
+    diagnostics = {
+        "total_targets": int(n_tgt),
+        "ambiguous_targets": 0,
+        "identity_disagreements": 0,
+        "multiview_consensus": 0,
+        "selected_targets": 0,
+    }
+    if n_src < 2 or n_tgt == 0:
+        return primary_identity, secondary_identity, diagnostics
+
+    primary_probs = torch.softmax(primary_identity[0], dim=0)
+    primary_top2 = torch.topk(primary_probs, k=2, dim=0)
+    primary_identity_parent = primary_top2.indices[0]
+    primary_margin = primary_top2.values[0] - primary_top2.values[1]
+    secondary_identity_parent = torch.argmax(
+        secondary_identity[0],
+        dim=0,
+    )
+    primary_multiview_parent = torch.argmax(
+        primary_multiview[0],
+        dim=0,
+    )
+    secondary_multiview_parent = torch.argmax(
+        secondary_multiview[0],
+        dim=0,
+    )
+
+    ambiguous = primary_margin <= margin_max
+    identity_disagreement = primary_identity_parent.ne(
+        secondary_identity_parent
+    )
+    multiview_consensus = primary_multiview_parent.eq(
+        secondary_multiview_parent
+    )
+    changes_primary_parent = primary_multiview_parent.ne(
+        primary_identity_parent
+    )
+    selected = (
+        ambiguous
+        & identity_disagreement
+        & multiview_consensus
+        & changes_primary_parent
+    )
+    diagnostics.update(
+        {
+            "ambiguous_targets": int(ambiguous.sum().item()),
+            "identity_disagreements": int(
+                identity_disagreement.sum().item()
+            ),
+            "multiview_consensus": int(multiview_consensus.sum().item()),
+            "selected_targets": int(selected.sum().item()),
+        }
+    )
+    mask = selected.view(1, 1, -1)
+    return (
+        torch.where(mask, primary_multiview, primary_identity),
+        torch.where(mask, secondary_multiview, secondary_identity),
+        diagnostics,
+    )
+
+
 """
 EDGE_TTA_ENCODE_START = "        unet_out, det_logits = model.encode(imgs)\n"
 EDGE_TTA_ENCODE_END = (
@@ -342,6 +433,26 @@ EDGE_TTA_ENCODE_REPLACEMENT = """        edge_tta_mode = os.environ.get(
             edge_names,
             edge_original_weight,
         )
+        edge_tta_application = os.environ.get(
+            "BIOHUB_EDGE_TTA_APPLICATION", "global"
+        ).strip()
+        if edge_tta_application not in {
+            "global", "ambiguous_parent_consensus"
+        }:
+            raise ValueError(
+                "Unsupported edge TTA application: "
+                f"{edge_tta_application!r}"
+            )
+        edge_tta_ambiguous_margin_max = float(os.environ.get(
+            "BIOHUB_EDGE_TTA_AMBIGUOUS_MARGIN_MAX", "0.35"
+        ))
+        if (
+            edge_tta_application == "ambiguous_parent_consensus"
+            and len(edge_names) == 1
+        ):
+            raise ValueError(
+                "Ambiguous-parent reranking requires multiple edge views"
+            )
         det_names = (
             _LEGACY_PSEUDO_D4 if cfg.det_tta else ("identity",)
         )
@@ -419,6 +530,23 @@ EDGE_TTA_EDGE_REPLACEMENT = """            edge_logits_pair = (
                     ds_arr_t,
                 )
             )
+            if edge_tta_application == "ambiguous_parent_consensus":
+                primary_identity_logits_pair = _predict_edge_tta_logits(
+                    model,
+                    primary_maps,
+                    ("identity",),
+                    {"identity": 1.0},
+                    f_idx,
+                    p_coords_src,
+                    p_coords_tgt,
+                    p_pos_src,
+                    p_pos_tgt,
+                    p_mask_src,
+                    p_mask_tgt,
+                    ds_arr_t,
+                )
+                primary_multiview_logits_pair = edge_logits_pair
+                edge_logits_pair = primary_identity_logits_pair
 
             if secondary_model is not None:
                 if secondary_maps is None:
@@ -440,6 +568,47 @@ EDGE_TTA_EDGE_REPLACEMENT = """            edge_logits_pair = (
                     p_mask_tgt,
                     ds_arr_t,
                 )
+                if edge_tta_application == "ambiguous_parent_consensus":
+                    secondary_identity_logits_pair = (
+                        _predict_edge_tta_logits(
+                            secondary_model,
+                            secondary_maps,
+                            ("identity",),
+                            {"identity": 1.0},
+                            f_idx,
+                            p_coords_src,
+                            p_coords_tgt,
+                            p_pos_src,
+                            p_pos_tgt,
+                            p_mask_src,
+                            p_mask_tgt,
+                            ds_arr_t,
+                        )
+                    )
+                    secondary_multiview_logits_pair = (
+                        secondary_logits_pair
+                    )
+                    (
+                        edge_logits_pair,
+                        secondary_logits_pair,
+                        parent_rerank_diagnostics,
+                    ) = _select_ambiguous_parent_rerank(
+                        primary_identity_logits_pair,
+                        secondary_identity_logits_pair,
+                        primary_multiview_logits_pair,
+                        secondary_multiview_logits_pair,
+                        edge_tta_ambiguous_margin_max,
+                    )
+                    print(
+                        "BIOHUB_PARENT_RERANK\\t"
+                        f"{ds_path.stem}\\t{int(t_src)}\\t{int(t_tgt)}\\t"
+                        f"{parent_rerank_diagnostics['total_targets']}\\t"
+                        f"{parent_rerank_diagnostics['ambiguous_targets']}\\t"
+                        f"{parent_rerank_diagnostics['identity_disagreements']}\\t"
+                        f"{parent_rerank_diagnostics['multiview_consensus']}\\t"
+                        f"{parent_rerank_diagnostics['selected_targets']}",
+                        flush=True,
+                    )
 
 """
 EDGE_TTA_CLEANUP_ANCHOR = """        del unet_out
@@ -549,6 +718,16 @@ def parse_args() -> argparse.Namespace:
         default="original",
     )
     parser.add_argument("--edge-tta-original-weight", type=float)
+    parser.add_argument(
+        "--edge-tta-application",
+        choices=EDGE_TTA_APPLICATIONS,
+        default="global",
+    )
+    parser.add_argument(
+        "--edge-tta-ambiguous-margin-max",
+        type=float,
+        default=0.35,
+    )
     parser.add_argument("--export-preilp", action="store_true")
     parser.add_argument(
         "--expected-reference-sha256",
@@ -838,6 +1017,109 @@ def compare_retention_controls(
     }
 
 
+def parse_parent_rerank_records(
+    log_path: Path,
+) -> dict[tuple[str, int, int], tuple[int, int, int, int, int]]:
+    records = {}
+    for line_number, line in enumerate(
+        log_path.read_text(encoding="utf-8").splitlines(),
+        start=1,
+    ):
+        if not line.startswith(PARENT_RERANK_LOG_PREFIX):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 9:
+            raise RuntimeError(
+                f"{log_path}:{line_number}: malformed parent-rerank record"
+            )
+        (
+            _,
+            dataset,
+            source_text,
+            target_text,
+            total_text,
+            ambiguous_text,
+            disagreement_text,
+            consensus_text,
+            selected_text,
+        ) = parts
+        source_frame = int(source_text)
+        target_frame = int(target_text)
+        values = tuple(
+            int(value)
+            for value in (
+                total_text,
+                ambiguous_text,
+                disagreement_text,
+                consensus_text,
+                selected_text,
+            )
+        )
+        total, ambiguous, disagreement, consensus, selected = values
+        if (
+            source_frame < 0
+            or target_frame != source_frame + 1
+            or min(values) < 0
+            or ambiguous > total
+            or disagreement > total
+            or consensus > total
+            or selected > ambiguous
+            or selected > disagreement
+            or selected > consensus
+        ):
+            raise RuntimeError(
+                f"{log_path}:{line_number}: invalid parent-rerank values"
+            )
+        key = (dataset, source_frame, target_frame)
+        if key in records:
+            raise RuntimeError(
+                f"{log_path}:{line_number}: duplicate parent-rerank key {key}"
+            )
+        records[key] = values
+    if not records:
+        raise RuntimeError(
+            f"No parent-rerank diagnostics found in {log_path}"
+        )
+    return records
+
+
+def summarize_parent_rerank_records(
+    records: dict[
+        tuple[str, int, int],
+        tuple[int, int, int, int, int],
+    ],
+) -> dict[str, object]:
+    labels = (
+        "total_targets",
+        "ambiguous_targets",
+        "identity_disagreements",
+        "multiview_consensus",
+        "selected_targets",
+    )
+    totals = {label: 0 for label in labels}
+    by_dataset: dict[str, dict[str, int]] = {}
+    for (dataset, _, _), values in sorted(records.items()):
+        dataset_stats = by_dataset.setdefault(
+            dataset,
+            {"frame_pairs": 0, **{label: 0 for label in labels}},
+        )
+        dataset_stats["frame_pairs"] += 1
+        for label, value in zip(labels, values):
+            totals[label] += value
+            dataset_stats[label] += value
+    total_targets = totals["total_targets"]
+    return {
+        "frame_pairs": len(records),
+        **totals,
+        "selected_fraction": (
+            totals["selected_targets"] / total_targets
+            if total_targets
+            else 0.0
+        ),
+        "datasets": dict(sorted(by_dataset.items())),
+    }
+
+
 def apply_reference_patch(
     reference_notebook: Path,
     temporary_repo: Path,
@@ -952,6 +1234,8 @@ def variant_environment(
         "BIOHUB_DUAL_SEED_MIN_CANDIDATE_RETENTION",
         "BIOHUB_EDGE_TTA_MODE",
         "BIOHUB_EDGE_TTA_ORIGINAL_WEIGHT",
+        "BIOHUB_EDGE_TTA_APPLICATION",
+        "BIOHUB_EDGE_TTA_AMBIGUOUS_MARGIN_MAX",
     ):
         env.pop(key, None)
     if args.edge_tta_mode != "original":
@@ -964,6 +1248,12 @@ def variant_environment(
                 "BIOHUB_EDGE_TTA_MODE": args.edge_tta_mode,
                 "BIOHUB_EDGE_TTA_ORIGINAL_WEIGHT": str(
                     edge_weights["identity"]
+                ),
+                "BIOHUB_EDGE_TTA_APPLICATION": (
+                    args.edge_tta_application
+                ),
+                "BIOHUB_EDGE_TTA_AMBIGUOUS_MARGIN_MAX": str(
+                    args.edge_tta_ambiguous_margin_max
                 ),
             }
         )
@@ -1106,6 +1396,10 @@ def main() -> None:
         raise ValueError(
             "--guard-min-candidate-retention must be in (0, 1]"
         )
+    if not 0.0 < args.edge_tta_ambiguous_margin_max <= 1.0:
+        raise ValueError(
+            "--edge-tta-ambiguous-margin-max must be in (0, 1]"
+        )
     if (
         args.edge_tta_mode == "original"
         and args.edge_tta_original_weight is not None
@@ -1113,6 +1407,25 @@ def main() -> None:
         raise ValueError(
             "--edge-tta-original-weight requires a non-original "
             "--edge-tta-mode"
+        )
+    if args.edge_tta_application == "ambiguous_parent_consensus":
+        if args.edge_tta_mode != "corrected_d4":
+            raise ValueError(
+                "ambiguous_parent_consensus requires corrected_d4"
+            )
+        non_blend = [
+            variant
+            for variant in args.variants
+            if variant not in BLEND_VARIANTS
+        ]
+        if non_blend:
+            raise ValueError(
+                "ambiguous_parent_consensus requires dual-seed blend "
+                f"variants, got {non_blend}"
+            )
+    elif args.edge_tta_application != "global":
+        raise ValueError(
+            f"Unsupported edge TTA application: {args.edge_tta_application}"
         )
     edge_views = edge_tta_views(args.edge_tta_mode)
     edge_weights = edge_tta_view_weights(
@@ -1258,6 +1571,19 @@ def main() -> None:
             results[variant]["retention_guard"] = (
                 summarize_retention_records(records)
             )
+            if (
+                args.edge_tta_application
+                == "ambiguous_parent_consensus"
+            ):
+                parent_records = parse_parent_rerank_records(log_path)
+                parent_summary = summarize_parent_rerank_records(
+                    parent_records
+                )
+                if int(parent_summary["selected_targets"]) <= 0:
+                    raise RuntimeError(
+                        "Ambiguous-parent reranker did not select a target"
+                    )
+                results[variant]["parent_rerank"] = parent_summary
         if args.export_preilp:
             preilp_dir = Path(item["preilp"])
             found_preilp = {
@@ -1316,6 +1642,7 @@ def main() -> None:
         },
         "edge_tta": {
             "mode": args.edge_tta_mode,
+            "application": args.edge_tta_application,
             "implementation_version": EDGE_TTA_IMPLEMENTATION_VERSION,
             "reference_notebook": (
                 str(args.edge_tta_reference_notebook.resolve())
@@ -1330,6 +1657,24 @@ def main() -> None:
             "feature_alignment": "inverse_map_to_canonical_zyx",
             "view_names": list(edge_views),
             "view_weights": edge_weights,
+            "ambiguous_parent_margin_max": (
+                args.edge_tta_ambiguous_margin_max
+            ),
+            "ambiguous_parent_policy": (
+                {
+                    "requires_primary_identity_low_margin": True,
+                    "requires_identity_seed_disagreement": True,
+                    "requires_multiview_seed_consensus": True,
+                    "requires_primary_parent_change": True,
+                    "replacement_scope": "selected_target_logit_columns",
+                    "unselected_policy": "identity_logits_exact",
+                }
+                if (
+                    args.edge_tta_application
+                    == "ambiguous_parent_consensus"
+                )
+                else None
+            ),
             "requested_view_count": len(edge_views),
             "unique_spatial_view_count": (
                 7
