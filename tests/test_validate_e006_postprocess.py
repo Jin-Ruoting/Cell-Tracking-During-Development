@@ -52,6 +52,13 @@ def e025_namespace() -> dict[str, object]:
 
 
 class E025ExactModeTests(unittest.TestCase):
+    def test_offline_namespace_provides_notebook_checksum_helper(self) -> None:
+        notebook = Path("/tmp/e025.ipynb")
+        namespace = VALIDATOR.notebook_execution_namespace(notebook)
+
+        self.assertEqual(namespace["__file__"], str(notebook))
+        self.assertIs(namespace["_sha256_file"], VALIDATOR.file_sha256)
+
     def test_e025_config_accepts_frozen_values(self) -> None:
         VALIDATOR.validate_e025_config(e025_namespace())
 

@@ -280,6 +280,16 @@ def notebook_cell_source(cells: list[dict[str, object]], index: int) -> str:
     )
 
 
+def notebook_execution_namespace(notebook: Path) -> dict[str, object]:
+    return {
+        "__name__": "biohub_e006_offline_validation",
+        "__file__": str(notebook),
+        # Cell 13 reuses the checksum helper defined in the full notebook's
+        # artifact setup cell, which the offline validator intentionally skips.
+        "_sha256_file": file_sha256,
+    }
+
+
 def load_notebook_namespace(args: argparse.Namespace) -> dict[str, object]:
     sys.path.insert(0, str(args.support_src))
     sys.path.insert(0, str(args.runtime_dir))
@@ -287,10 +297,7 @@ def load_notebook_namespace(args: argparse.Namespace) -> dict[str, object]:
     notebook = json.loads(args.notebook.read_text(encoding="utf-8"))
     cells = notebook["cells"]
 
-    namespace: dict[str, object] = {
-        "__name__": "biohub_e006_offline_validation",
-        "__file__": str(args.notebook),
-    }
+    namespace = notebook_execution_namespace(args.notebook)
     if args.public_v40_parity:
         if len(cells) != 13:
             raise RuntimeError(
