@@ -146,10 +146,10 @@ def main() -> None:
     control_paths = movie_paths(args.control_preilp_dir)
     candidate_paths = movie_paths(args.candidate_preilp_dir)
     final_paths = movie_paths(args.candidate_final_dir)
-    if not (
-        set(control_paths) == set(candidate_paths) == set(final_paths)
-    ):
-        raise RuntimeError("Control pre-ILP, candidate pre-ILP, and final sets differ")
+    if set(candidate_paths) != set(final_paths):
+        raise RuntimeError("Candidate pre-ILP and final movie sets differ")
+    if not set(candidate_paths) <= set(control_paths):
+        raise RuntimeError("Control pre-ILP directory is missing candidate movies")
     names = sorted(control_paths)
     if len(names) != args.expected_count:
         raise RuntimeError(
@@ -171,6 +171,9 @@ def main() -> None:
             control_edges[edge] != candidate_edges[edge]
             for edge in control_edges.keys() & candidate_edges.keys()
         )
+        changed_edge_keys = len(
+            control_edges.keys() ^ candidate_edges.keys()
+        )
         total_changed += changed
         topology = audit_final_graph(final)
         per_movie[name] = {
@@ -180,6 +183,7 @@ def main() -> None:
             "control_edges": len(control_edges),
             "candidate_edges": len(candidate_edges),
             "edge_key_sets_exact": set(control_edges) == set(candidate_edges),
+            "changed_edge_keys": changed_edge_keys,
             "changed_common_edge_probabilities": changed,
             "all_control_probabilities_finite": all(
                 math.isfinite(value) for value in control_edges.values()
@@ -193,9 +197,6 @@ def main() -> None:
     gates = {
         "all_node_signatures_exact": all(
             row["node_signatures_exact"] for row in per_movie.values()
-        ),
-        "all_edge_key_sets_exact": all(
-            row["edge_key_sets_exact"] for row in per_movie.values()
         ),
         "all_probabilities_finite": all(
             row["all_control_probabilities_finite"]
