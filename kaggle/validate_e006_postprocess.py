@@ -22,6 +22,8 @@ the existing Hungarian motion relinker and its probability bonus. A focused
 mode evaluates one preregistered bonus beside the same E000 control.
 The public-v40 parity mode loads Pilkwang's 13-cell notebook layout and runs
 its frozen DeepCenter-confirmed postprocessor as one exact comparison arm.
+The E025 exact mode loads the committed 20-cell notebook, preserves its local
+binary safe-division guard, and runs its frozen DeepCenter gap confirmation.
 """
 
 from __future__ import annotations
@@ -70,6 +72,9 @@ POSTPROCESS_COUNTERS = (
 )
 PUBLIC_V40_DEEPCENTER_SHA256 = (
     "8164d1ffa07f87e0506027a0392edeab7939a32bd5e3f756377c0d72885cf127"
+)
+E025_NOTEBOOK_SHA256 = (
+    "9bee9329ca19d03db77139255d7f4d2d38394628b5c7da82073ee34815952a2f"
 )
 # The hp names record calibration-set TP counts; the supplied sweep graphs stay
 # untouched until this fixed rule set is evaluated.
@@ -203,6 +208,14 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Load the public 13-cell v40 layout and run its exact "
             "DeepCenter-confirmed postprocessing arm."
+        ),
+    )
+    parser.add_argument(
+        "--e025-exact",
+        action="store_true",
+        help=(
+            "Run the committed E025 postprocessor with its local binary "
+            "safe-division guard and exact DeepCenter gap confirmation."
         ),
     )
     parser.add_argument(
@@ -366,6 +379,43 @@ def validate_public_v40_config(namespace: dict[str, object]) -> None:
         )
 
 
+def validate_e025_config(namespace: dict[str, object]) -> None:
+    expected = {
+        "OUTPUT_SAFE_DIVISIONS": True,
+        "OUTPUT_MOTION_RELINK": True,
+        "MOTION_RELINK_TIGHT_UM": 6.0,
+        "MOTION_RELINK_RELAXED_UM": 10.0,
+        "MOTION_RELINK_LEARNED_BONUS": 1.0,
+        "OUTPUT_GAP_CLOSE": True,
+        "GAP_CLOSE_MAX_GAP": 2,
+        "GAP_CLOSE_UM": 5.8,
+        "GAP_DENSITY_ADAPTIVE": True,
+        "OUTPUT_FILTER_SHORT_TRACKS": True,
+        "OUTPUT_MIN_TRACK_LEN": 6,
+        "ADAPTIVE_SHORT_TRACK_RESCUE": False,
+        "OUTPUT_LINEFIT_SMOOTH": True,
+        "OUTPUT_PRUNE_ISOLATED": True,
+        "USE_DEEPCENTER_VETO": True,
+        "REQUIRE_DEEPCENTER_VETO": True,
+        "DEEPCENTER_GAP_VETO": True,
+        "DEEPCENTER_SAFE_DIV_VETO": False,
+        "DEEPCENTER_GAP_THRESHOLD": 0.25,
+        "DEEPCENTER_GAP_CONFIRM_MIN_SPAN_UM": 8.5,
+        "DEEPCENTER_EXPECTED_EPOCH": 500,
+        "DEEPCENTER_EXPECTED_SHA256": PUBLIC_V40_DEEPCENTER_SHA256,
+    }
+    mismatches = {
+        name: {"expected": value, "actual": namespace.get(name)}
+        for name, value in expected.items()
+        if namespace.get(name) != value
+    }
+    if mismatches:
+        raise RuntimeError(
+            "E025 configuration mismatch: "
+            + json.dumps(mismatches, sort_keys=True)
+        )
+
+
 def build_variant_specs(
     namespace: dict[str, object],
     e000_only: bool,
@@ -377,6 +427,7 @@ def build_variant_specs(
     preilp_motion_sweep: bool,
     preilp_motion_bonus: float | None,
     public_v40_parity: bool,
+    e025_exact: bool,
 ) -> dict[str, dict[str, object]]:
     selected_modes = sum(
         int(enabled)
@@ -390,6 +441,7 @@ def build_variant_specs(
             preilp_motion_sweep,
             preilp_motion_bonus is not None,
             public_v40_parity,
+            e025_exact,
         )
     )
     if selected_modes > 1:
@@ -410,6 +462,29 @@ def build_variant_specs(
                 ),
                 "linefit_smooth": bool(namespace["OUTPUT_LINEFIT_SMOOTH"]),
                 "prune_isolated": bool(namespace["OUTPUT_PRUNE_ISOLATED"]),
+                "deepcenter": True,
+                "deepcenter_gap_veto": True,
+                "deepcenter_safe_div_veto": False,
+                "deepcenter_gap_threshold": 0.25,
+                "deepcenter_safe_div_threshold": float(
+                    namespace["DEEPCENTER_SAFE_DIV_THRESHOLD"]
+                ),
+                "deepcenter_gap_confirm_min_span_um": 8.5,
+                "deepcenter_expected_epoch": 500,
+            },
+        }
+    if e025_exact:
+        validate_e025_config(namespace)
+        return {
+            "e025_exact": {
+                "safe_divisions": True,
+                "rule": None,
+                "motion_relink": True,
+                "gap_close": True,
+                "short_track_filter": True,
+                "adaptive_short_track_rescue": False,
+                "linefit_smooth": True,
+                "prune_isolated": True,
                 "deepcenter": True,
                 "deepcenter_gap_veto": True,
                 "deepcenter_safe_div_veto": False,
@@ -917,6 +992,23 @@ def evaluate_csv(args: argparse.Namespace, variant: str, csv_path: Path) -> str:
 
 def main() -> None:
     args = parse_args()
+    selected_modes = sum(
+        int(enabled)
+        for enabled in (
+            args.e000_only,
+            args.calibrated_rule_sweep,
+            args.postprocessed_rule_sweep,
+            args.deepcenter_control,
+            args.e000_ablation_sweep,
+            args.e000_motion_control,
+            args.preilp_motion_sweep,
+            args.preilp_motion_bonus is not None,
+            args.public_v40_parity,
+            args.e025_exact,
+        )
+    )
+    if selected_modes > 1:
+        raise ValueError("Choose only one validation mode")
     if args.max_outdegree < 2:
         raise ValueError("--max-outdegree must be at least 2")
     if args.preilp_motion_bonus is not None and (
@@ -924,18 +1016,22 @@ def main() -> None:
         or args.preilp_motion_bonus <= 0.0
     ):
         raise ValueError("--preilp-motion-bonus must be finite and positive")
-    deepcenter_mode = args.deepcenter_control or args.public_v40_parity
+    deepcenter_mode = (
+        args.deepcenter_control
+        or args.public_v40_parity
+        or args.e025_exact
+    )
     if deepcenter_mode and args.deepcenter_checkpoint is None:
         mode_name = (
             "--public-v40-parity"
             if args.public_v40_parity
-            else "--deepcenter-control"
+            else "--e025-exact" if args.e025_exact else "--deepcenter-control"
         )
         raise ValueError(f"{mode_name} requires --deepcenter-checkpoint")
     if not deepcenter_mode and args.deepcenter_checkpoint is not None:
         raise ValueError(
             "--deepcenter-checkpoint is valid only with --deepcenter-control "
-            "or --public-v40-parity"
+            "--public-v40-parity, or --e025-exact"
         )
     if (
         args.expected_notebook_sha256 is not None
@@ -969,9 +1065,16 @@ def main() -> None:
                 "Notebook SHA256 mismatch: "
                 f"expected {expected_notebook_sha256}, got {notebook_sha256}"
             )
+    if args.e025_exact:
+        notebook_sha256 = file_sha256(args.notebook)
+        if notebook_sha256 != E025_NOTEBOOK_SHA256:
+            raise RuntimeError(
+                "E025 notebook SHA256 mismatch: "
+                f"expected {E025_NOTEBOOK_SHA256}, got {notebook_sha256}"
+            )
 
     deepcenter_checkpoint_sha256 = None
-    if args.public_v40_parity:
+    if args.public_v40_parity or args.e025_exact:
         deepcenter_checkpoint_sha256 = file_sha256(
             args.deepcenter_checkpoint
         )
@@ -987,7 +1090,6 @@ def main() -> None:
 
     if args.output_dir.exists():
         raise FileExistsError(f"Refusing to overwrite {args.output_dir}")
-    args.output_dir.mkdir(parents=True)
     namespace = load_notebook_namespace(args)
     variant_specs = build_variant_specs(
         namespace,
@@ -1000,12 +1102,17 @@ def main() -> None:
         args.preilp_motion_sweep,
         args.preilp_motion_bonus,
         args.public_v40_parity,
+        args.e025_exact,
     )
     deepcenter_bundle = (
         load_deepcenter_bundle(
             namespace,
             args.deepcenter_checkpoint,
-            expected_epoch=500 if args.public_v40_parity else 0,
+            expected_epoch=(
+                500
+                if args.public_v40_parity or args.e025_exact
+                else 0
+            ),
         )
         if deepcenter_mode
         else None
@@ -1014,6 +1121,7 @@ def main() -> None:
     baseline_paths = sorted(args.baseline_dir.glob("*.geff"))
     if not baseline_paths:
         raise FileNotFoundError(f"No baseline GEFFs under {args.baseline_dir}")
+    args.output_dir.mkdir(parents=True)
     baseline_names = {path.stem for path in baseline_paths}
     requires_preilp = any(
         spec["rule"] is not None or bool(spec.get("preilp_motion", False))
@@ -1057,6 +1165,13 @@ def main() -> None:
     report: dict[str, object] = {
         "notebook": str(args.notebook.resolve()),
         "notebook_sha256": notebook_sha256,
+        "baseline_dir": str(args.baseline_dir.resolve()),
+        "image_dir": str(args.image_dir.resolve()),
+        "ground_truth_dir": str(args.ground_truth_dir.resolve()),
+        "runtime_dir": str(args.runtime_dir.resolve()),
+        "support_src": str(args.support_src.resolve()),
+        "scorer_dir": str(args.scorer_dir.resolve()),
+        "output_dir": str(args.output_dir.resolve()),
         "e000_only": args.e000_only,
         "max_outdegree": args.max_outdegree,
         "calibrated_rule_sweep": args.calibrated_rule_sweep,
@@ -1066,6 +1181,7 @@ def main() -> None:
         "e000_motion_control": args.e000_motion_control,
         "preilp_motion_sweep": args.preilp_motion_sweep,
         "preilp_motion_bonus": args.preilp_motion_bonus,
+        "e025_exact": args.e025_exact,
         "deepcenter_checkpoint": (
             str(args.deepcenter_checkpoint.resolve())
             if args.deepcenter_checkpoint is not None
@@ -1098,6 +1214,20 @@ def main() -> None:
             "expected_deepcenter_checkpoint_sha256": (
                 PUBLIC_V40_DEEPCENTER_SHA256
             ),
+        }
+    elif args.e025_exact:
+        report["validation_mode"] = "e025_exact"
+        report["source_manifest"] = {
+            "mode": "e025_exact",
+            "notebook_sha256": notebook_sha256,
+            "expected_notebook_sha256": E025_NOTEBOOK_SHA256,
+            "deepcenter_checkpoint_sha256": (
+                deepcenter_checkpoint_sha256
+            ),
+            "expected_deepcenter_checkpoint_sha256": (
+                PUBLIC_V40_DEEPCENTER_SHA256
+            ),
+            "binary_safe_division_guard": "local_per_source_reservation",
         }
     try:
         for index, baseline_path in enumerate(baseline_paths, start=1):

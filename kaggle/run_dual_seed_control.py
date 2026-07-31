@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import shutil
+import statistics
 import subprocess
 import sys
 import time
@@ -37,10 +38,36 @@ SECONDARY_WEIGHT_SHA256 = (
 )
 PATCH_CELL_INDEX = 9
 PATCH_END_MARKER = "\ndef list_test_stems() -> list[str]:\n"
-VARIANTS = ("primary", "secondary", "blend")
+VARIANTS = ("primary", "secondary", "blend", "blend_guard")
+BLEND_VARIANTS = ("blend", "blend_guard")
 LINK_MODES = ("raw", "calibrated", "adaptive", "low_margin_consensus")
 EDGE_TTA_MODES = ("original", "pilkwang_legacy_d4", "corrected_d4")
 EDGE_TTA_IMPLEMENTATION_VERSION = "dual_seed_edge_tta_v1"
+RETENTION_GUARD_IMPLEMENTATION_VERSION = (
+    "dual_seed_frame_retention_guard_v1"
+)
+RETENTION_LOG_PREFIX = "BIOHUB_RETENTION_FRAME\t"
+RETENTION_GUARD_HELPER_ANCHOR = "@torch.no_grad()\ndef predict_video("
+RETENTION_GUARD_HELPERS = """# --- dual_seed_frame_retention_guard_v1 ---
+def _retention_guard_uses_primary(
+    primary_candidates: int,
+    blended_candidates: int,
+    minimum_retention: float,
+) -> bool:
+    if primary_candidates < 0 or blended_candidates < 0:
+        raise ValueError("Retention candidate counts must be non-negative")
+    if not 0.0 <= minimum_retention <= 1.0:
+        raise ValueError(
+            "BIOHUB_DUAL_SEED_MIN_CANDIDATE_RETENTION must be in [0, 1]"
+        )
+    if minimum_retention == 0.0 or primary_candidates == 0:
+        return False
+    return (
+        blended_candidates / primary_candidates
+    ) < minimum_retention
+
+
+"""
 LEGACY_EDGE_TTA_VIEWS = (
     "identity",
     "flip_x",
@@ -366,8 +393,7 @@ EDGE_TTA_ENCODE_REPLACEMENT = """        edge_tta_mode = os.environ.get(
                     )
                     det_logits[f] = (
                         (1.0 - secondary_detection_weight) * primary_det
-                        + secondary_detection_weight
-                        * secondary_det_aligned
+                        + secondary_detection_weight * secondary_det_aligned
                     )
 
             del secondary_det_logits
@@ -424,6 +450,49 @@ EDGE_TTA_CLEANUP_REPLACEMENT = """        del primary_maps
         if secondary_maps is not None:
             del secondary_maps
 """
+RETENTION_GUARD_BLEND_BLOCK = """                    det_logits[f] = (
+                        (1.0 - secondary_detection_weight) * primary_det
+                        + secondary_detection_weight * secondary_det_aligned
+                    )"""
+RETENTION_GUARD_BLEND_REPLACEMENT = """\
+                    blended_det = (
+                        (1.0 - secondary_detection_weight) * primary_det
+                        + secondary_detection_weight * secondary_det_aligned
+                    )
+                    primary_candidates = len(_detect_cells_pooled(
+                        primary_det[0],
+                        int(frame_indices[f]),
+                        cfg.det_threshold,
+                        pool_k,
+                    ))
+                    blended_candidates = len(_detect_cells_pooled(
+                        blended_det[0],
+                        int(frame_indices[f]),
+                        cfg.det_threshold,
+                        pool_k,
+                    ))
+                    minimum_retention = float(os.environ.get(
+                        "BIOHUB_DUAL_SEED_MIN_CANDIDATE_RETENTION",
+                        "0",
+                    ))
+                    use_primary_detection = _retention_guard_uses_primary(
+                        primary_candidates,
+                        blended_candidates,
+                        minimum_retention,
+                    )
+                    det_logits[f] = (
+                        primary_det if use_primary_detection else blended_det
+                    )
+                    if int(frame_indices[f]) not in seen_frames:
+                        print(
+                            "BIOHUB_RETENTION_FRAME\\t"
+                            f"{ds_path.stem}\\t"
+                            f"{int(frame_indices[f])}\\t"
+                            f"{primary_candidates}\\t"
+                            f"{blended_candidates}\\t"
+                            f"{int(use_primary_detection)}",
+                            flush=True,
+                        )"""
 
 
 def parse_args() -> argparse.Namespace:
@@ -461,6 +530,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--blend-mix-temperature", type=float, default=1.0)
     parser.add_argument("--blend-low-margin-max", type=float, default=0.35)
     parser.add_argument("--blend-edge-threshold", type=float, default=0.48)
+    parser.add_argument(
+        "--guard-min-candidate-retention",
+        type=float,
+        default=0.90,
+        help=(
+            "Framewise blended/primary candidate-count floor used only by "
+            "the blend_guard variant."
+        ),
+    )
     parser.add_argument(
         "--edge-tta-reference-notebook",
         type=Path,
@@ -598,6 +676,168 @@ def apply_edge_tta_patch(predictor_source: str) -> str:
     )
 
 
+def apply_retention_guard_patch(predictor_source: str) -> str:
+    if RETENTION_GUARD_IMPLEMENTATION_VERSION in predictor_source:
+        raise RuntimeError("Frame-retention guard patch is already present")
+    helper_count = predictor_source.count(RETENTION_GUARD_HELPER_ANCHOR)
+    if helper_count != 1:
+        raise RuntimeError(
+            "Frame-retention guard helper anchor must occur exactly once: "
+            f"found {helper_count}"
+        )
+    anchor_count = predictor_source.count(RETENTION_GUARD_BLEND_BLOCK)
+    if anchor_count != 1:
+        raise RuntimeError(
+            "Frame-retention guard blend anchor must occur exactly once: "
+            f"found {anchor_count}"
+        )
+    predictor_source = predictor_source.replace(
+        RETENTION_GUARD_HELPER_ANCHOR,
+        RETENTION_GUARD_HELPERS + RETENTION_GUARD_HELPER_ANCHOR,
+        1,
+    )
+    return predictor_source.replace(
+        RETENTION_GUARD_BLEND_BLOCK,
+        RETENTION_GUARD_BLEND_REPLACEMENT,
+        1,
+    )
+
+
+def parse_retention_records(
+    log_path: Path,
+) -> dict[tuple[str, int], tuple[int, int, bool]]:
+    records: dict[tuple[str, int], tuple[int, int, bool]] = {}
+    for line_number, line in enumerate(
+        log_path.read_text(encoding="utf-8").splitlines(),
+        start=1,
+    ):
+        if not line.startswith(RETENTION_LOG_PREFIX):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 6:
+            raise RuntimeError(
+                f"{log_path}:{line_number}: malformed retention record"
+            )
+        _, dataset, frame_text, primary_text, blended_text, fallback_text = (
+            parts
+        )
+        frame = int(frame_text)
+        primary_candidates = int(primary_text)
+        blended_candidates = int(blended_text)
+        fallback_value = int(fallback_text)
+        if (
+            frame < 0
+            or primary_candidates < 0
+            or blended_candidates < 0
+            or fallback_value not in (0, 1)
+        ):
+            raise RuntimeError(
+                f"{log_path}:{line_number}: invalid retention values"
+            )
+        key = (dataset, frame)
+        if key in records:
+            raise RuntimeError(
+                f"{log_path}:{line_number}: duplicate retention key {key}"
+            )
+        records[key] = (
+            primary_candidates,
+            blended_candidates,
+            bool(fallback_value),
+        )
+    if not records:
+        raise RuntimeError(f"No retention diagnostics found in {log_path}")
+    return records
+
+
+def summarize_retention_records(
+    records: dict[tuple[str, int], tuple[int, int, bool]],
+) -> dict[str, object]:
+    by_dataset: dict[str, dict[str, object]] = {}
+    all_retentions: list[float] = []
+    for (dataset, _), (
+        primary_candidates,
+        blended_candidates,
+        fallback,
+    ) in sorted(records.items()):
+        retention = (
+            blended_candidates / primary_candidates
+            if primary_candidates
+            else 1.0
+        )
+        all_retentions.append(retention)
+        stats = by_dataset.setdefault(
+            dataset,
+            {
+                "evaluated_frames": 0,
+                "fallback_frames": 0,
+                "retentions": [],
+            },
+        )
+        stats["evaluated_frames"] = int(stats["evaluated_frames"]) + 1
+        stats["fallback_frames"] = int(stats["fallback_frames"]) + int(
+            fallback
+        )
+        stats["retentions"].append(retention)
+
+    dataset_summary = {}
+    for dataset, stats in sorted(by_dataset.items()):
+        retentions = list(stats.pop("retentions"))
+        dataset_summary[dataset] = {
+            **stats,
+            "minimum_retention": min(retentions),
+            "median_retention": statistics.median(retentions),
+        }
+    return {
+        "evaluated_frames": len(records),
+        "fallback_frames": sum(
+            int(fallback) for _, _, fallback in records.values()
+        ),
+        "minimum_retention": min(all_retentions),
+        "median_retention": statistics.median(all_retentions),
+        "datasets": dataset_summary,
+    }
+
+
+def compare_retention_controls(
+    control: dict[tuple[str, int], tuple[int, int, bool]],
+    candidate: dict[tuple[str, int], tuple[int, int, bool]],
+) -> dict[str, object]:
+    if set(control) != set(candidate):
+        raise RuntimeError(
+            "Retention A/B diagnostic coverage mismatch: "
+            f"missing={sorted(set(control) - set(candidate))}, "
+            f"extra={sorted(set(candidate) - set(control))}"
+        )
+    mismatched_counts = [
+        key
+        for key in sorted(control)
+        if control[key][:2] != candidate[key][:2]
+    ]
+    if mismatched_counts:
+        raise RuntimeError(
+            "Retention A/B candidate counts changed before fallback: "
+            f"{mismatched_counts[:10]}"
+        )
+    control_fallbacks = sum(
+        int(fallback) for _, _, fallback in control.values()
+    )
+    if control_fallbacks:
+        raise RuntimeError(
+            "Disabled retention control unexpectedly used fallback on "
+            f"{control_fallbacks} frames"
+        )
+    candidate_fallbacks = sum(
+        int(fallback) for _, _, fallback in candidate.values()
+    )
+    return {
+        "paired_frames": len(control),
+        "candidate_counts_identical": True,
+        "control_fallback_frames": 0,
+        "candidate_fallback_frames": candidate_fallbacks,
+        "guard_activated": candidate_fallbacks > 0,
+    }
+
+
 def apply_reference_patch(
     reference_notebook: Path,
     temporary_repo: Path,
@@ -630,7 +870,8 @@ def apply_reference_patch(
     predictor_source = predictor.read_text(encoding="utf-8")
     if edge_tta_mode != "original":
         predictor_source = apply_edge_tta_patch(predictor_source)
-        predictor.write_text(predictor_source, encoding="utf-8")
+    predictor_source = apply_retention_guard_patch(predictor_source)
+    predictor.write_text(predictor_source, encoding="utf-8")
     if export_preilp:
         marker = "        graph = build_graph(coords, edges)\n"
         if predictor_source.count(marker) != 1:
@@ -708,6 +949,7 @@ def variant_environment(
         "BIOHUB_SECONDARY_MIX_TEMPERATURE",
         "BIOHUB_SECONDARY_LOW_MARGIN_MAX",
         "BIOHUB_DUAL_SEED_EDGE_THRESHOLD",
+        "BIOHUB_DUAL_SEED_MIN_CANDIDATE_RETENTION",
         "BIOHUB_EDGE_TTA_MODE",
         "BIOHUB_EDGE_TTA_ORIGINAL_WEIGHT",
     ):
@@ -725,7 +967,7 @@ def variant_environment(
                 ),
             }
         )
-    if variant == "blend":
+    if variant in BLEND_VARIANTS:
         env.update(
             {
                 "BIOHUB_SECONDARY_WEIGHTS": str(
@@ -748,6 +990,10 @@ def variant_environment(
                     args.blend_edge_threshold
                 ),
             }
+        )
+    if variant == "blend_guard":
+        env["BIOHUB_DUAL_SEED_MIN_CANDIDATE_RETENTION"] = str(
+            args.guard_min_candidate_retention
         )
     return env
 
@@ -856,6 +1102,10 @@ def main() -> None:
         raise ValueError("--blend-low-margin-max must be in (0, 1]")
     if not 0.0 < args.blend_edge_threshold < 1.0:
         raise ValueError("--blend-edge-threshold must be in (0, 1)")
+    if not 0.0 < args.guard_min_candidate_retention <= 1.0:
+        raise ValueError(
+            "--guard-min-candidate-retention must be in (0, 1]"
+        )
     if (
         args.edge_tta_mode == "original"
         and args.edge_tta_original_weight is not None
@@ -978,6 +1228,10 @@ def main() -> None:
             handle.close()
 
     results = {}
+    retention_records: dict[
+        str,
+        dict[tuple[str, int], tuple[int, int, bool]],
+    ] = {}
     expected = set(datasets)
     for item in prepared:
         variant = str(item["variant"])
@@ -997,6 +1251,13 @@ def main() -> None:
             ],
             "command": commands[variant],
         }
+        if variant in BLEND_VARIANTS:
+            log_path = Path(item["root"]) / "predict.log"
+            records = parse_retention_records(log_path)
+            retention_records[variant] = records
+            results[variant]["retention_guard"] = (
+                summarize_retention_records(records)
+            )
         if args.export_preilp:
             preilp_dir = Path(item["preilp"])
             found_preilp = {
@@ -1009,6 +1270,13 @@ def main() -> None:
                     f"extra={sorted(found_preilp - expected)}"
                 )
             results[variant]["preilp_dir"] = str(preilp_dir)
+
+    retention_ab_check = None
+    if {"blend", "blend_guard"} <= set(retention_records):
+        retention_ab_check = compare_retention_controls(
+            retention_records["blend"],
+            retention_records["blend_guard"],
+        )
 
     manifest = {
         "reference_notebook": str(args.reference_notebook.resolve()),
@@ -1031,6 +1299,20 @@ def main() -> None:
             "mix_temperature": args.blend_mix_temperature,
             "low_margin_max": args.blend_low_margin_max,
             "edge_threshold": args.blend_edge_threshold,
+        },
+        "retention_guard": {
+            "implementation_version": (
+                RETENTION_GUARD_IMPLEMENTATION_VERSION
+            ),
+            "activation_variant": "blend_guard",
+            "minimum_candidate_retention": (
+                args.guard_min_candidate_retention
+            ),
+            "fallback_scope": "individual_frame",
+            "reference_field": "primary_detection_logits",
+            "candidate_extractor": "_detect_cells_pooled",
+            "label_free": True,
+            "ab_check": retention_ab_check,
         },
         "edge_tta": {
             "mode": args.edge_tta_mode,
