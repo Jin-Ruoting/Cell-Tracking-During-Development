@@ -24,6 +24,10 @@ REQUIRED_GATES = {
     "both_embryos_positive", "both_halves_positive",
     "affected_wins_exceed_losses", "affected_median_positive",
 }
+AUTHOR_SELECTION_NAMES = {
+    "44b6_12dfb391", "44b6_267148e4", "44b6_2a2eff9f", "44b6_341df25f",
+    "6bba_062c8d37", "6bba_07e24132", "6bba_085bf656", "6bba_09961292",
+}
 
 
 def require_promotion(run_dir: Path) -> dict:
@@ -65,6 +69,36 @@ def remove_status_prints(source: str) -> str:
         isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
         and isinstance(node.value.func, ast.Name) and node.value.func.id == "print")]
     return ast.unparse(tree)
+
+
+def check_author_selection_overlap(run_dir: Path, runtime_dir: Path, scorer_dir: Path) -> dict:
+    """Score the movies outside the author's eight-movie parameter selection."""
+    report = json.loads((run_dir / "stability.json").read_text())
+    rows = report["official_rows"]
+    names = sorted(rows["control"])
+    if names != sorted(rows["candidate"]) or len(names) != 64:
+        raise ValueError("Per-movie scoring evidence is incomplete")
+    remaining = sorted(set(names) - AUTHOR_SELECTION_NAMES)
+    if len(remaining) != 59:
+        raise ValueError("Published parameter-selection overlap changed")
+    official = reference.stability.load_official_scorer(runtime_dir, scorer_dir)
+    groups = {}
+    for group, subset in {"all": remaining, **{
+            prefix: [n for n in remaining if n.startswith(prefix + "_")]
+            for prefix in ("44b6", "6bba")}}.items():
+        control = reference.stability.official_summary(official, rows["control"], subset)
+        candidate = reference.stability.official_summary(official, rows["candidate"], subset)
+        groups[group] = {"n": len(subset), "control": control, "candidate": candidate,
+                         "delta": reference.stability.summary_delta(control, candidate)}
+    gates = {"pooled_gain_002": groups["all"]["delta"]["score"] >= 0.002,
+             "both_embryos_positive": all(groups[g]["delta"]["score"] > 0 for g in ("44b6", "6bba"))}
+    audit = {"excluded": sorted(set(names) & AUTHOR_SELECTION_NAMES), "groups": groups,
+             "gates": gates, "passed": all(gates.values()),
+             "evidence_boundary": "Outside the author's parameter-selection movies; still not training-disjoint CV"}
+    (run_dir / "author_selection_overlap.json").write_text(json.dumps(audit, indent=2) + "\n")
+    if not audit["passed"]:
+        raise ValueError("Gains do not generalize beyond the author's selection movies")
+    return audit
 
 
 def make_notebook(sources: list[str], proof: dict) -> dict:
@@ -114,11 +148,15 @@ def main():
     parser.add_argument("--reference-notebook", type=Path, required=True)
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--runtime-dir", type=Path, required=True)
+    parser.add_argument("--scorer-dir", type=Path, required=True)
     parser.add_argument("--kernel", required=True)
     args = parser.parse_args()
     if not re.fullmatch(r"[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+", args.kernel):
         raise ValueError("Invalid Kaggle Kernel identifier")
     proof = require_promotion(args.run_dir)
+    proof["outside_author_selection"] = check_author_selection_overlap(
+        args.run_dir, args.runtime_dir, args.scorer_dir)
     notebook = make_notebook(reference.read_reference(args.reference_notebook), proof)
     metadata = json.loads((Path(__file__).parent / "kernel-metadata.json").read_text())
     metadata.update({"id": args.kernel, "title": "Biohub E029 | Frozen Geometric Reference",
