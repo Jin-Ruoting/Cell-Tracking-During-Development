@@ -1,8 +1,12 @@
 import ast
+import csv
+import importlib.util
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 KAGGLE = Path(__file__).resolve().parents[1] / "kaggle"
 sys.path.insert(0, str(KAGGLE))
@@ -59,6 +63,64 @@ materialize_inference_repo(ARTIFACTS)
             self.assertEqual(namespace[key]["PYTHONPATH"], "src" + os.pathsep + "/pinned/runtime")
         with self.assertRaisesRegex(ValueError, "anchors"):
             reference.adapt_worker_paths('env = {}')
+
+
+@unittest.skipUnless(importlib.util.find_spec("numpy") and importlib.util.find_spec("pandas"),
+                     "Submission audit tests need the server's existing numpy/pandas runtime")
+class SubmissionAuditTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.columns = ["id", "dataset", "row_type", "node_id", "t", "z", "y", "x", "source_id", "target_id"]
+        self.rows = [
+            [0, "movie", "node", 1, 0, 1, 1, 1, -1, -1],
+            [1, "movie", "node", 2, 1, 1, 1, 1, -1, -1],
+            [2, "movie", "edge", -1, -1, -1, -1, -1, 1, 2],
+        ]
+
+    def audit(self):
+        path = self.root / "submission.csv"
+        with path.open("w", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(self.columns)
+            writer.writerows(self.rows)
+        zarr = types.SimpleNamespace(open=lambda *a, **k: {"0": types.SimpleNamespace(shape=(3, 8, 16, 16))})
+        with mock.patch.dict(sys.modules, {"zarr": zarr}):
+            return reference.validate_submission(path, self.root, ["movie"])
+
+    def test_valid_graph_passes(self):
+        self.assertTrue(self.audit()["passed"])
+
+    def test_volume_boundary_is_exclusive(self):
+        self.rows[1][5] = 8
+        with self.assertRaisesRegex(ValueError, "out-of-volume"):
+            self.audit()
+
+    def test_fractional_coordinate_is_rejected(self):
+        self.rows[1][6] = 1.25
+        with self.assertRaisesRegex(ValueError, "noninteger"):
+            self.audit()
+
+    def test_dangling_edge_is_rejected(self):
+        self.rows[2][-1] = 99
+        with self.assertRaisesRegex(ValueError, "dangling"):
+            self.audit()
+
+    def test_nonconsecutive_edge_is_rejected(self):
+        self.rows[1][4] = 2
+        with self.assertRaisesRegex(ValueError, "nonconsecutive"):
+            self.audit()
+
+    def test_three_children_are_rejected(self):
+        self.rows.extend([
+            [3, "movie", "node", 3, 1, 1, 2, 1, -1, -1],
+            [4, "movie", "node", 4, 1, 1, 3, 1, -1, -1],
+            [5, "movie", "edge", -1, -1, -1, -1, -1, 1, 3],
+            [6, "movie", "edge", -1, -1, -1, -1, -1, 1, 4],
+        ])
+        with self.assertRaisesRegex(ValueError, "lineage degree"):
+            self.audit()
 
 
 if __name__ == "__main__":

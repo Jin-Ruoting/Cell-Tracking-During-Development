@@ -13,6 +13,7 @@ import argparse
 import ast
 import csv
 import json
+import math
 import os
 import subprocess
 import sys
@@ -183,6 +184,10 @@ def evaluate(args, names: list[str]) -> dict:
         c = stability.official_summary(official, rows["control"], subset)
         v = stability.official_summary(official, rows["candidate"], subset)
         groups[key] = {"control": c, "candidate": v, "delta": stability.summary_delta(c, v)}
+    if len(names) == 64 and not math.isclose(
+        float(groups["all"]["control"]["score"]), 0.9014331472, rel_tol=0, abs_tol=1e-9
+    ):
+        raise ValueError("Official E025 control score no longer reproduces S157")
     affected = stability.paired_stats([r for r in records if r["affected"]])
     gates = {
         "full_corpus": len(names) == 64,
