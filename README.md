@@ -4,10 +4,9 @@ Reproducible, no-exploit inference and graph-reconstruction workflow for the
 Kaggle research competition
 [Biohub - Cell Tracking During Development](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development).
 
-This repository presents two original method lines developed for the
-competition: a clean single-seed tracking pipeline at `0.908`, and a calibrated
-dual-seed pipeline with center-confirmed gap repair at `0.912`. The executable
-E025 method has achieved a verified public score of `0.912`.
+This repository contains clean single-seed and dual-seed tracking pipelines,
+plus attributed external-method comparisons. The executable E025 method has
+achieved a verified public score of `0.912`.
 
 ## Verified Results
 
@@ -20,7 +19,7 @@ E025 method has achieved a verified public score of `0.912`.
 The E025 score belongs to this repository's submitted Kernel version 1:
 [biohub-e025-guarded-dual-seed-center-gaps](https://www.kaggle.com/code/buaaauto/biohub-e025-guarded-dual-seed-center-gaps?scriptVersionId=338254608).
 
-## Public Leaderboard Snapshot
+## Historical Baseline Leaderboard Snapshot
 
 ![Kaggle public leaderboard snapshot showing Ruoting at rank 135 with a public score of 0.912](assets/kaggle-public-leaderboard-2026-07-28.png)
 
@@ -29,7 +28,7 @@ the displayed rank and score at capture time.*
 
 ## Shared Tracking Pipeline
 
-Both method lines use pretrained inference artifacts rather than training
+The methods use pretrained inference artifacts rather than training
 models inside the submission Notebook:
 
 ```text
@@ -164,6 +163,44 @@ calibration, and center-gated gap repair. Because these changes were submitted
 together, the leaderboard result does not establish the isolated causal
 contribution of any one component.
 
+## Frozen External Reference: E029
+
+E029 reproduces [Aman Atar's Geometric Fusion](https://www.kaggle.com/code/amanatar/biohub-geometric-fusion),
+which extends [Igor Zharov's Harmonic Fusion](https://www.kaggle.com/code/flexonafft/biohub-harmonic-fusion),
+using the original pretrained artifacts by Pilkwang Kim. The external Notebook
+is acquired separately and verified by SHA256; its training-label validator
+and parameter sweep are excluded from this submission implementation.
+
+The frozen method combines a secondary detection weight of `0.80`, aligned
+eight-view association features for both seeds, secondary feature weight
+`0.75`, and forward/reverse harmonic association with reverse weight `0.15`.
+DeepCenter uses the verified epoch-2 checkpoint and confirms geometric division
+proposals. The author's seven published postprocessing overrides are fixed.
+An independent export check handles one-voxel upper-bound rounding and rejects
+larger excursions or invalid lineage topology.
+
+The pinned official scorer produced these development results:
+
+| Evaluation set | E025 control | E029 | Difference |
+|---|---:|---:|---:|
+| Fixed 64 movies | `0.901433` | `0.909044` | `+0.007611` |
+| 59 movies outside the author's parameter-selection set | `0.901729` | `0.908376` | `+0.006647` |
+
+Both embryo groups and both alternating halves improved in overall score.
+The full-corpus adjusted-edge component decreased by `0.001032`, while division
+Jaccard increased from `0.029851` to `0.116279`. E029 therefore failed the
+original all-component promotion rule. It was selected for an exploratory
+public-score test under an explicitly recorded overall-score policy, with
+that failed component retained in the evidence. These development comparisons
+use public training movies and fixed pretrained checkpoints; they are not
+training-disjoint model validation.
+
+Private Kernel version 1 completed both GPU shards and produced 241,311 rows
+(122,764 nodes and 118,547 edges) across four test movies. Downloaded output
+passed an independent coordinate/topology audit and exact reexport check.
+Its SHA256 is
+`4254dbc610cb53b262c8fbd854b6696a3bf01461a18a61aa0eaf6b0fc38c015d`.
+
 ## Reproducibility
 
 - No hidden-test labels, metric exploits, artificial hubs, negative-time
@@ -193,4 +230,6 @@ contribution of any one component.
   component tradeoff; packaging is not score evidence.
 - `kaggle/fuse_division_evidence.py`: prediction-only division correspondence
   on fixed base detections, with a checksum-pinned evaluation launcher.
+- `kaggle/watch_competition_submission.py`: read-only terminal-score and full
+  leaderboard verification for an existing submission; it never submits.
 - `NOTICE.md`: third-party component and competition-resource notice.
