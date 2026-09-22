@@ -190,4 +190,6 @@ contribution of any one component.
   comparison against E025 using the official scorer.
 - `kaggle/build_geometric_submission.py`: private Notebook packaging gated
   on a complete, passing 64-movie comparison; packaging is not score evidence.
+- `kaggle/fuse_division_evidence.py`: prediction-only division correspondence
+  on fixed base detections, with a checksum-pinned evaluation launcher.
 - `NOTICE.md`: third-party component and competition-resource notice.

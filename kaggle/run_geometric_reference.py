@@ -223,8 +223,9 @@ def evaluate(args, names: list[str]) -> dict:
         c = stability.official_summary(official, rows["control"], subset)
         v = stability.official_summary(official, rows["candidate"], subset)
         groups[key] = {"control": c, "candidate": v, "delta": stability.summary_delta(c, v)}
-    if len(names) == 64 and not math.isclose(
-        float(groups["all"]["control"]["score"]), 0.9014331472, rel_tol=0, abs_tol=1e-9
+    expected_control_score = getattr(args, "expected_control_score", 0.9014331472)
+    if len(names) == 64 and expected_control_score is not None and not math.isclose(
+        float(groups["all"]["control"]["score"]), expected_control_score, rel_tol=0, abs_tol=1e-9
     ):
         raise ValueError("Official E025 control score no longer reproduces S157")
     affected = stability.paired_stats([r for r in records if r["affected"]])
@@ -238,7 +239,7 @@ def evaluate(args, names: list[str]) -> dict:
         "affected_wins_exceed_losses": affected["wins"] > affected["losses"],
         "affected_median_positive": (affected["median_delta"] or 0) > 0,
     }
-    report = {"experiment": "E029 frozen public geometric reference", "groups": groups,
+    report = {"experiment": getattr(args, "experiment", "E029 frozen public geometric reference"), "groups": groups,
               "gates": gates, "promotion_passed": all(gates.values()), "paired": affected,
               "per_movie": records, "graph_signatures": signatures, "official_rows": rows,
               "evidence_boundary": "Two-embryo-stratified development evaluation; not training-disjoint CV"}
