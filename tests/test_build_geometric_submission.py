@@ -10,6 +10,20 @@ import build_geometric_submission as builder
 
 
 class SubmissionPackageTests(unittest.TestCase):
+    def test_component_tradeoff_requires_an_explicit_policy_and_keeps_failed_gate(self):
+        gates = dict.fromkeys(builder.REQUIRED_GATES, True)
+        gates["adjusted_edge_not_regressed"] = False
+        report = {"gates": gates, "promotion_passed": False,
+                  "groups": {"all": {"delta": {"division_jaccard": 0.08, "adj_edge_jaccard": -0.001}}}}
+        with self.assertRaises(ValueError):
+            builder.classify_selection(report)
+        decision = builder.classify_selection(report, True)
+        self.assertFalse(decision["original_frozen_gate_passed"])
+        self.assertEqual(decision["failed_frozen_gates"], ["adjusted_edge_not_regressed"])
+        gates["both_embryos_positive"] = False
+        with self.assertRaises(ValueError):
+            builder.classify_selection(report, True)
+
     def test_smoke_receipt_cannot_authorize_a_package(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)

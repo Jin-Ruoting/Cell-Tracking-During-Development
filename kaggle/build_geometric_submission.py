@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a private E029 Kaggle package only from a passed full evaluation.
+"""Build a private E029 package from a complete, explicitly classified evaluation.
 
 The reference Notebook is acquired separately from its public author. This
 builder preserves the verified inference cells and freezes the published
@@ -30,7 +30,24 @@ AUTHOR_SELECTION_NAMES = {
 }
 
 
-def require_promotion(run_dir: Path) -> dict:
+def classify_selection(report: dict, allow_component_tradeoff: bool = False) -> dict:
+    gates = report.get("gates", {})
+    if set(gates) != REQUIRED_GATES or any(value is not True and value is not False for value in gates.values()):
+        raise ValueError("Complete frozen gate results are required")
+    required = REQUIRED_GATES - {"adjusted_edge_not_regressed"} if allow_component_tradeoff else REQUIRED_GATES
+    if any(gates[key] is not True for key in required):
+        raise ValueError("Required selection gates did not pass")
+    if not allow_component_tradeoff and report.get("promotion_passed") is not True:
+        raise ValueError("Every frozen promotion gate must pass")
+    if allow_component_tradeoff and report["groups"]["all"]["delta"]["division_jaccard"] <= 0:
+        raise ValueError("A component tradeoff requires a division-score gain")
+    return {"selection_policy": "primary_metric_challenger" if allow_component_tradeoff else "all_frozen_gates",
+            "original_frozen_gate_passed": report.get("promotion_passed") is True,
+            "failed_frozen_gates": sorted(key for key, passed in gates.items() if not passed),
+            "official_component_deltas": report["groups"]["all"]["delta"]}
+
+
+def require_promotion(run_dir: Path, allow_component_tradeoff: bool = False) -> dict:
     load = lambda name: json.loads((run_dir / name).read_text())
     manifest = load("run_manifest.json")
     if (manifest.get("mode") != "full" or manifest.get("reference_sha256") != reference.REFERENCE_SHA256
@@ -43,10 +60,7 @@ def require_promotion(run_dir: Path) -> dict:
     if len(names) != 64 or reference.stability.movie_names_sha256(names) != reference.CORPUS_SHA256:
         raise ValueError("Promotion corpus changed")
     report = load("stability.json")
-    gates = report.get("gates", {})
-    if (report.get("promotion_passed") is not True or set(gates) != REQUIRED_GATES
-            or any(value is not True for value in gates.values())):
-        raise ValueError("Every frozen promotion gate must pass")
+    selection = classify_selection(report, allow_component_tradeoff)
     if not math.isclose(report["groups"]["all"]["control"]["score"],
                         0.9014331472, abs_tol=1e-9, rel_tol=0):
         raise ValueError("E025 control parity was not established")
@@ -59,7 +73,7 @@ def require_promotion(run_dir: Path) -> dict:
     if (export.get("policy") != reference.OUTPUT_BOUNDS_POLICY
             or export.get("submission_sha256") != audit["submission_sha256"]):
         raise ValueError("Validated spatial export policy is missing")
-    return {"evaluation_commit": manifest["git_commit"],
+    return {**selection, "evaluation_commit": manifest["git_commit"],
             "evaluation_submission_sha256": audit["submission_sha256"],
             "official_control_score": report["groups"]["all"]["control"]["score"],
             "official_candidate_score": report["groups"]["all"]["candidate"]["score"],
@@ -151,6 +165,13 @@ def make_notebook(sources: list[str], proof: dict) -> dict:
         "a spatial coordinate rounded exactly one voxel past an image boundary is constrained "
         "to the last voxel before auditing and submission. Larger excursions fail.\n"
     )
+    if proof.get("selection_policy") == "primary_metric_challenger":
+        introduction += (
+            "\nThis exploratory candidate improves the official overall score and the registered "
+            "embryo/half stability checks, but loses adjusted-edge score. It failed the original "
+            "all-component promotion rule. A subsequent primary-metric selection decision "
+            "retains that failed result and permits one public-score test without retuning.\n"
+        )
     cells = [{"cell_type": "markdown", "metadata": {}, "source": introduction}]
     cells.extend({"cell_type": "code", "metadata": {}, "source": source,
                   "execution_count": None, "outputs": []} for source in code)
@@ -167,10 +188,12 @@ def main():
     parser.add_argument("--runtime-dir", type=Path, required=True)
     parser.add_argument("--scorer-dir", type=Path, required=True)
     parser.add_argument("--kernel", required=True)
+    parser.add_argument("--allow-component-tradeoff", action="store_true",
+                        help="Explicit exploratory primary-score selection; retain failed component gates")
     args = parser.parse_args()
     if not re.fullmatch(r"[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+", args.kernel):
         raise ValueError("Invalid Kaggle Kernel identifier")
-    proof = require_promotion(args.run_dir)
+    proof = require_promotion(args.run_dir, args.allow_component_tradeoff)
     proof["outside_author_selection"] = check_author_selection_overlap(
         args.run_dir, args.runtime_dir, args.scorer_dir)
     notebook = make_notebook(reference.read_reference(args.reference_notebook), proof)
