@@ -91,6 +91,13 @@ def selected_names(control_dir: Path, mode: str) -> list[str]:
     return names
 
 
+def adapt_worker_paths(source: str) -> str:
+    anchor = '"PYTHONPATH": "src"'
+    if source.count(anchor) != 2:
+        raise ValueError("Reference worker environment anchors changed")
+    return source.replace(anchor, '"PYTHONPATH": os.pathsep.join(["src", os.environ.get("PYTHONPATH", "")])')
+
+
 def validate_submission(csv_path: Path, image_dir: Path, names: list[str]) -> dict:
     """Independently validate the actual rounded submission coordinates."""
     import numpy as np
@@ -249,6 +256,7 @@ def run(args) -> None:
         "COMP_DIR": f"Path({str(input_dir)!r})", "WORKING_DIR": f"Path({str(args.output_dir)!r})"})
     sources[3] = adapt_cell(sources[3], {
         "ARTIFACTS": f"Path({str(args.data_dir / 'support-pack')!r})"}, ("ensure_dependencies",))
+    sources[4] = adapt_worker_paths(sources[4])
     # Cell 6 has an obsolete hard-coded configuration receipt. Use the
     # independent audit below instead; cells 7 onward select on labels.
     for i in range(2, 6):

@@ -47,6 +47,19 @@ materialize_inference_repo(ARTIFACTS)
             with self.assertRaisesRegex(ValueError, "corpus"):
                 reference.selected_names(path, "smoke")
 
+    def test_worker_paths_preserve_runtime_in_both_execution_branches(self):
+        source = 'shard_env = {**os.environ, "PYTHONPATH": "src"}\nenv = {**os.environ, "PYTHONPATH": "src"}'
+        adapted = reference.adapt_worker_paths(source)
+        import os
+        from unittest.mock import patch
+        namespace = {"os": os}
+        with patch.dict(os.environ, {"PYTHONPATH": "/pinned/runtime"}):
+            exec(adapted, namespace)
+        for key in ("shard_env", "env"):
+            self.assertEqual(namespace[key]["PYTHONPATH"], "src" + os.pathsep + "/pinned/runtime")
+        with self.assertRaisesRegex(ValueError, "anchors"):
+            reference.adapt_worker_paths('env = {}')
+
 
 if __name__ == "__main__":
     unittest.main()
