@@ -80,6 +80,10 @@ class SubmissionAuditTests(unittest.TestCase):
         ]
 
     def audit(self):
+        # Import compiled extensions before snapshotting sys.modules. Restoring
+        # that dictionary must not unload a just-imported NumPy extension.
+        import numpy
+        import pandas
         path = self.root / "submission.csv"
         with path.open("w", newline="") as handle:
             writer = csv.writer(handle)
