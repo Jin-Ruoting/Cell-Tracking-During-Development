@@ -200,6 +200,9 @@ Private Kernel version 1 completed both GPU shards and produced 241,311 rows
 passed an independent coordinate/topology audit and exact reexport check.
 Its SHA256 is
 `4254dbc610cb53b262c8fbd854b6696a3bf01461a18a61aa0eaf6b0fc38c015d`.
+The independently generated output matches the reference author's selected
+output byte for byte. The reference output was downloaded for this comparison
+only after E029's runtime output had been audited and submitted.
 
 ## Reproducibility
 
