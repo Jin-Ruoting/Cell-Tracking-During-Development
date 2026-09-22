@@ -186,4 +186,8 @@ contribution of any one component.
 - `kaggle/run_dual_seed_control.py`: pinned independent-seed inference control.
 - `kaggle/audit_hoct_rerank.py`: HOCT edge-ranking compatibility audit.
 - `kaggle/audit_e000_error_budget.py`: official-matcher error-budget audit.
+- `kaggle/run_geometric_reference.py`: frozen, attributed external-method
+  comparison against E025 using the official scorer.
+- `kaggle/build_geometric_submission.py`: private Notebook packaging gated
+  on a complete, passing 64-movie comparison; packaging is not score evidence.
 - `NOTICE.md`: third-party component and competition-resource notice.
