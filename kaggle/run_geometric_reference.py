@@ -239,6 +239,12 @@ def run(args) -> None:
         "BIOHUB_DEEPCENTER_ARTIFACT_MANIFEST": str(args.data_dir / "deepcenter-v1-full/ARTIFACT_MANIFEST.json"),
         "BIOHUB_DEEPCENTER_CHECKPOINT": str(deepcenter), "BIOHUB_VALIDATOR_ENABLE": "0",
     })
+    # The server runtime has no Jupyter display package; this is only used
+    # to display configuration tables, not by prediction or postprocessing.
+    display_import = "from IPython.display import display"
+    if sources[2].count(display_import) != 1:
+        raise ValueError("Reference display import changed")
+    sources[2] = sources[2].replace(display_import, "display = print", 1)
     sources[2] = adapt_cell(sources[2], {
         "COMP_DIR": f"Path({str(input_dir)!r})", "WORKING_DIR": f"Path({str(args.output_dir)!r})"})
     sources[3] = adapt_cell(sources[3], {
