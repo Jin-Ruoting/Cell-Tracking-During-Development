@@ -25,6 +25,7 @@ import evaluate_ab_stability as stability
 REFERENCE_SHA256 = "f82a606e2e3289f1d6dce078d381dd7b0caf148c92bb25f2f05bea80d4e79a37"
 CORPUS_SHA256 = "276c09d16cddaf2e865896ce147161a7beb5a62142bf47c1f1bd7648f7643e7f"
 DEEPCENTER_SHA256 = "8040999a92f6b7bbd98fa8cf458141e045c0f9ad7c936bdb3b18e1f7edafe2a0"
+OUTPUT_BOUNDS_POLICY = "spatial_upper_boundary_to_last_voxel_v1"
 SMOKE_NAMES = ("44b6_eb2880fc", "6bba_969618f6")
 # Taken from the public run's ppsweep_selected.json before our first score.
 FROZEN_OVERRIDES = {
@@ -97,6 +98,44 @@ def adapt_worker_paths(source: str) -> str:
     if source.count(anchor) != 2:
         raise ValueError("Reference worker environment anchors changed")
     return source.replace(anchor, '"PYTHONPATH": os.pathsep.join(["src", os.environ.get("PYTHONPATH", "")])')
+
+
+def normalize_export_boundary(source_path: Path, output_path: Path, image_dir: Path,
+                              names: list[str]) -> dict:
+    """Constrain one-voxel spatial export overshoot; never repair time or topology.
+
+    The reference rounds smoothed positions with no upper image bound. Preserve
+    its raw CSV and only map a spatial coordinate equal to the axis size onto
+    the last voxel. Larger excursions and negative coordinates remain errors.
+    """
+    import zarr
+
+    if source_path.resolve() == output_path.resolve() or output_path.exists():
+        raise ValueError("Boundary export requires a new output file")
+    shapes = {name: zarr.open(str(image_dir / f"{name}.zarr"), mode="r")["0"].shape
+              for name in names}
+    changes = []
+    with source_path.open(newline="") as source, output_path.open("x", newline="") as output:
+        reader = csv.DictReader(source)
+        writer = csv.DictWriter(output, fieldnames=reader.fieldnames)
+        writer.writeheader()
+        for row in reader:
+            if row["row_type"] == "node":
+                shape = shapes[row["dataset"]]
+                if not 0 <= int(row["t"]) < shape[0]:
+                    raise ValueError("Out-of-volume time cannot be normalized")
+                for axis, limit in zip(("z", "y", "x"), shape[1:]):
+                    value = int(row[axis])
+                    if value < 0 or value > limit:
+                        raise ValueError("Spatial excursion exceeds the one-voxel export boundary")
+                    if value == limit:
+                        row[axis] = str(limit - 1)
+                        changes.append({"dataset": row["dataset"], "node_id": int(row["node_id"]),
+                                        "axis": axis, "before": value, "after": limit - 1})
+            writer.writerow(row)
+    return {"policy": "spatial_upper_boundary_to_last_voxel_v1", "changes": changes,
+            "source_sha256": stability.file_sha256(source_path),
+            "submission_sha256": stability.file_sha256(output_path)}
 
 
 def validate_submission(csv_path: Path, image_dir: Path, names: list[str]) -> dict:
@@ -211,6 +250,57 @@ def evaluate(args, names: list[str]) -> dict:
     return report
 
 
+def complete_export(args, names: list[str], manifest: dict, source_csv: Path) -> None:
+    image_dir = args.output_dir / "input/test"
+    export = normalize_export_boundary(source_csv, args.output_dir / "submission.csv", image_dir, names)
+    (args.output_dir / "export_boundary_audit.json").write_text(json.dumps(export, indent=2) + "\n")
+    audit = validate_submission(args.output_dir / "submission.csv", image_dir, names)
+    (args.output_dir / "topology_audit.json").write_text(json.dumps(audit, indent=2) + "\n")
+    manifest["output_bounds_policy"] = OUTPUT_BOUNDS_POLICY
+    manifest["inference_and_topology_passed"] = True
+    (args.output_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    result = evaluate(args, names)
+    print(json.dumps({"groups": result["groups"], "gates": result["gates"]}, indent=2), flush=True)
+
+
+def complete_existing_run(args) -> None:
+    """Recover export/evaluation in a new directory without rerunning inference."""
+    names = selected_names(args.control_dir, args.mode)
+    read_reference(args.reference_notebook)
+    original = json.loads((args.completed_run_dir / "run_manifest.json").read_text())
+    if (original.get("datasets") != names or original.get("mode") != args.mode
+            or original.get("reference_sha256") != REFERENCE_SHA256
+            or original.get("frozen_overrides") != FROZEN_OVERRIDES
+            or original.get("deepcenter_sha256") != DEEPCENTER_SHA256):
+        raise ValueError("Completed inference provenance changed")
+    prediction_root = args.completed_run_dir / "tracking_repo/predictions"
+    graphs = sorted(prediction_root.glob("*/unet_transformer/split_0/*.geff"))
+    if sorted(path.stem for path in graphs) != names:
+        raise ValueError("Completed raw inference coverage changed")
+    source_csv = args.completed_run_dir / "submission.csv"
+    if stability.file_sha256(source_csv) != args.source_submission_sha256:
+        raise ValueError("Completed raw submission bytes changed")
+    args.output_dir.mkdir(parents=True, exist_ok=False)
+    image_dir = args.output_dir / "input/test"
+    image_dir.mkdir(parents=True)
+    for name in names:
+        (image_dir / f"{name}.zarr").symlink_to(args.data_dir / "train" / f"{name}.zarr", target_is_directory=True)
+    sys.path[:0] = [str(args.runtime_dir)]
+    os.environ.update({"OMP_NUM_THREADS": "4", "MKL_NUM_THREADS": "4",
+                       "OPENBLAS_NUM_THREADS": "4", "POLARS_MAX_THREADS": "4"})
+    os.environ["PYTHONPATH"] = os.pathsep.join([str(args.runtime_dir), str(args.scorer_dir / "src"),
+                                               str(args.scorer_dir / "scripts")])
+    manifest = {**original, "inference_git_commit": original["git_commit"],
+                "git_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+                "completed_inference_source": str(args.completed_run_dir),
+                "source_manifest_sha256": stability.file_sha256(args.completed_run_dir / "run_manifest.json"),
+                "source_submission_sha256": args.source_submission_sha256,
+                "patched_predictor_sha256": stability.file_sha256(
+                    args.completed_run_dir / "tracking_repo/scripts/predict_unet_transformer.py")}
+    (args.output_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    complete_export(args, names, manifest, source_csv)
+
+
 def run(args) -> None:
     names = selected_names(args.control_dir, args.mode)
     sources = read_reference(args.reference_notebook)
@@ -268,15 +358,13 @@ def run(args) -> None:
         source = sources[i].replace("/kaggle/working", str(args.output_dir))
         print(f"EXECUTING REFERENCE CELL {i}", flush=True)
         exec(compile(source, f"reference:cell-{i}", "exec"), namespace)
-    audit = validate_submission(args.output_dir / "submission.csv", image_dir, names)
-    (args.output_dir / "topology_audit.json").write_text(json.dumps(audit, indent=2) + "\n")
     manifest["effective_environment"] = {k: v for k, v in os.environ.items() if k.startswith("BIOHUB_")}
     manifest["patched_predictor_sha256"] = stability.file_sha256(
         args.output_dir / "tracking_repo/scripts/predict_unet_transformer.py")
-    manifest["inference_and_topology_passed"] = True
     (args.output_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    result = evaluate(args, names)
-    print(json.dumps({"groups": result["groups"], "gates": result["gates"]}, indent=2), flush=True)
+    source_csv = args.output_dir / "raw_submission.csv"
+    (args.output_dir / "submission.csv").rename(source_csv)
+    complete_export(args, names, manifest, source_csv)
 
 
 def main() -> None:
@@ -288,11 +376,18 @@ def main() -> None:
     parser.add_argument("--scorer-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--mode", choices=("smoke", "full"), required=True)
+    parser.add_argument("--completed-run-dir", type=Path)
+    parser.add_argument("--source-submission-sha256")
     args = parser.parse_args()
+    if bool(args.completed_run_dir) != bool(args.source_submission_sha256):
+        parser.error("Completed-run recovery requires the source submission SHA256")
     for key, value in vars(args).items():
         if isinstance(value, Path):
             setattr(args, key, value.resolve())
-    run(args)
+    if args.completed_run_dir:
+        complete_existing_run(args)
+    else:
+        run(args)
 
 
 if __name__ == "__main__":

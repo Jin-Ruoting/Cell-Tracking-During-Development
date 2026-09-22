@@ -36,6 +36,7 @@ def require_promotion(run_dir: Path) -> dict:
     if (manifest.get("mode") != "full" or manifest.get("reference_sha256") != reference.REFERENCE_SHA256
             or manifest.get("frozen_overrides") != reference.FROZEN_OVERRIDES
             or manifest.get("deepcenter_sha256") != reference.DEEPCENTER_SHA256
+            or manifest.get("output_bounds_policy") != reference.OUTPUT_BOUNDS_POLICY
             or manifest.get("inference_and_topology_passed") is not True):
         raise ValueError("Full evaluation provenance is missing or changed")
     names = manifest["datasets"]
@@ -54,10 +55,15 @@ def require_promotion(run_dir: Path) -> dict:
         raise ValueError("Complete topology audit is missing")
     if audit["submission_sha256"] != reference.stability.file_sha256(run_dir / "submission.csv"):
         raise ValueError("Evaluated submission bytes changed")
+    export = load("export_boundary_audit.json")
+    if (export.get("policy") != reference.OUTPUT_BOUNDS_POLICY
+            or export.get("submission_sha256") != audit["submission_sha256"]):
+        raise ValueError("Validated spatial export policy is missing")
     return {"evaluation_commit": manifest["git_commit"],
             "evaluation_submission_sha256": audit["submission_sha256"],
             "official_control_score": report["groups"]["all"]["control"]["score"],
             "official_candidate_score": report["groups"]["all"]["candidate"]["score"],
+            "output_bounds_policy": reference.OUTPUT_BOUNDS_POLICY,
             "stability_sha256": reference.stability.file_sha256(run_dir / "stability.json")}
 
 
@@ -104,6 +110,10 @@ def check_author_selection_overlap(run_dir: Path, runtime_dir: Path, scorer_dir:
 def make_notebook(sources: list[str], proof: dict) -> dict:
     audit_source = inspect.getsource(reference.validate_submission).replace(
         "stability.file_sha256(csv_path)", "hashlib.sha256(csv_path.read_bytes()).hexdigest()")
+    export_source = inspect.getsource(reference.normalize_export_boundary)
+    for variable in ("source_path", "output_path"):
+        export_source = export_source.replace(f"stability.file_sha256({variable})",
+                                              f"hashlib.sha256({variable}.read_bytes()).hexdigest()")
     overrides = repr({"BIOHUB_" + k: str(v) for k, v in reference.FROZEN_OVERRIDES.items()})
     configuration = (
         "# Frozen author-published postprocessing overrides; no runtime tuning.\n"
@@ -111,7 +121,11 @@ def make_notebook(sources: list[str], proof: dict) -> dict:
         "os.environ['BIOHUB_VALIDATOR_ENABLE'] = '0'\n"
     )
     audit = (
-        "import hashlib\n" + audit_source + "\n"
+        "import hashlib\n" + export_source + "\n" + audit_source + "\n"
+        "e029_raw_csv = WORKING_DIR / 'raw_submission.csv'\n"
+        "SUBMISSION_PATH.rename(e029_raw_csv)\n"
+        "e029_export = normalize_export_boundary(e029_raw_csv, SUBMISSION_PATH, TEST_DIR, sorted(test_stems))\n"
+        "(WORKING_DIR / 'export_boundary_audit.json').write_text(json.dumps(e029_export, indent=2) + '\\n')\n"
         "e029_audit = validate_submission(SUBMISSION_PATH, TEST_DIR, sorted(test_stems))\n"
         f"e029_audit['external_reference_sha256'] = {reference.REFERENCE_SHA256!r}\n"
         f"e029_audit['frozen_overrides'] = {reference.FROZEN_OVERRIDES!r}\n"
@@ -133,7 +147,9 @@ def make_notebook(sources: list[str], proof: dict) -> dict:
         "The author's published postprocessing selection is frozen. No validator, training-label "
         "selection, or parameter sweep executes during this Notebook. Offline promotion used "
         "the pinned official scorer on 64 development movies; this is not training-disjoint CV "
-        "and does not establish a leaderboard score.\n"
+        "and does not establish a leaderboard score. The raw reference output is preserved; "
+        "a spatial coordinate rounded exactly one voxel past an image boundary is constrained "
+        "to the last voxel before auditing and submission. Larger excursions fail.\n"
     )
     cells = [{"cell_type": "markdown", "metadata": {}, "source": introduction}]
     cells.extend({"cell_type": "code", "metadata": {}, "source": source,

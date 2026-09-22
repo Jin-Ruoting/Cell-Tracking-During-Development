@@ -126,6 +126,41 @@ class SubmissionAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lineage degree"):
             self.audit()
 
+    def normalize(self):
+        import numpy
+        import pandas
+        source, output = self.root / "raw.csv", self.root / "normalized.csv"
+        with source.open("w", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(self.columns)
+            writer.writerows(self.rows)
+        original = source.read_bytes()
+        zarr = types.SimpleNamespace(open=lambda *a, **k: {"0": types.SimpleNamespace(shape=(3, 8, 16, 16))})
+        with mock.patch.dict(sys.modules, {"zarr": zarr}):
+            receipt = reference.normalize_export_boundary(source, output, self.root, ["movie"])
+        self.assertEqual(source.read_bytes(), original)
+        with output.open(newline="") as handle:
+            return receipt, list(csv.reader(handle))
+
+    def test_boundary_export_preserves_every_other_field_and_the_raw_file(self):
+        self.rows[1][5] = 8
+        receipt, rows = self.normalize()
+        expected = [[str(v) for v in row] for row in self.rows]
+        expected[1][5] = "7"
+        self.assertEqual(rows, [self.columns, *expected])
+        self.assertEqual(receipt["changes"], [{"dataset": "movie", "node_id": 2,
+                                              "axis": "z", "before": 8, "after": 7}])
+
+    def test_larger_spatial_excursion_is_not_hidden_by_export(self):
+        self.rows[1][5] = 9
+        with self.assertRaisesRegex(ValueError, "one-voxel"):
+            self.normalize()
+
+    def test_boundary_export_cannot_repair_time(self):
+        self.rows[1][4] = 3
+        with self.assertRaisesRegex(ValueError, "time"):
+            self.normalize()
+
 
 if __name__ == "__main__":
     unittest.main()
