@@ -31,3 +31,12 @@ The official patched metric and its documentation are maintained separately:
 No metric exploit is intentionally included. The project does not add
 artificial hubs, fake division forks, negative-time nodes, out-of-volume
 nodes, or cross-dataset edges.
+# Additional public method reference
+
+`kaggle/run_geometric_reference.py` reproduces a frozen configuration from
+[Aman Atar's Biohub Geometric Fusion](https://www.kaggle.com/code/amanatar/biohub-geometric-fusion),
+which extends [Igor Zharov's Biohub Harmonic Fusion](https://www.kaggle.com/code/flexonafft/biohub-harmonic-fusion).
+The runner requires the separately acquired, checksum-pinned reference
+Notebook and the original model artifacts. It does not redistribute them.
+This reproduction is an external method comparison, not an originality or
+leaderboard-score claim for this repository.
