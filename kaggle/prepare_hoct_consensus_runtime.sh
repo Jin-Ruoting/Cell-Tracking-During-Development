@@ -17,7 +17,7 @@ finish() {
   fi
 }
 trap finish EXIT
-timeout 90 "$python_bin" -u kaggle/fetch_hoct_wheels.py \
+timeout 900 "$python_bin" -u kaggle/fetch_hoct_wheels.py \
   --output-dir "$out/wheels" > "$out/install.log" 2>&1
 "$python_bin" - "$out" <<'PY'
 import hashlib
@@ -28,7 +28,7 @@ if hashlib.sha256(path.read_bytes()).hexdigest() != "c6194e81a05d272913dd0945ede
     raise ValueError("HOCT 0.2.0 wheel differs from its official PyPI SHA256")
 PY
 "$python_bin" -m pip install --no-index --no-deps --find-links "$out/wheels" \
-  --target "$out/runtime" hoct==0.2.0 spatial-graph==0.1.1 pooch==1.9.0 >> "$out/install.log" 2>&1
+  --target "$out/runtime" hoct==0.2.0 spatial-graph==0.1.1 pooch==1.9.0 gurobipy==12.0.3 >> "$out/install.log" 2>&1
 PYTHONPATH="$out/runtime:$root/Dataset/runtime-py311" "$python_bin" - "$out" "$root" <<'PY' >> "$out/install.log" 2>&1
 import hashlib
 import importlib.metadata
@@ -51,6 +51,7 @@ receipt = {
     "parameters": sum(p.numel() for p in model.parameters()),
     "wheels": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (out / "wheels").glob("*.whl")},
     "base_environment_modified": False, "inference_run": False,
+    "full_scale_solver_tested": False,
 }
 (out / "runtime_receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
 (out / "run_summary.md").write_text(

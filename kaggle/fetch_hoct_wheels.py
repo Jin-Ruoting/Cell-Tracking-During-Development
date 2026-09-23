@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import subprocess
 from urllib.parse import urlparse
@@ -10,19 +11,26 @@ from urllib.parse import urlparse
 from packaging.tags import sys_tags
 from packaging.utils import canonicalize_name, parse_wheel_filename
 
-PACKAGES = {"hoct": "0.2.0", "spatial-graph": "0.1.1", "pooch": "1.9.0"}
+PACKAGES = {"hoct": "0.2.0", "spatial-graph": "0.1.1", "pooch": "1.9.0", "gurobipy": "12.0.3"}
 
 
 def fetch(url, size_limit, output=None):
     """Bound the entire request, including resolution, using verified IPv4 transport."""
     if urlparse(url).scheme != "https":
         raise ValueError("Official downloads must use HTTPS")
-    result = subprocess.run(
-        ["curl", "-4", "--proto", "=https", "--fail", "--silent", "--show-error",
-         "--connect-timeout", "5", "--max-time", "15", "--max-filesize", str(size_limit), url],
-        check=True, stdout=output if output is not None else subprocess.PIPE,
-        stderr=subprocess.PIPE, timeout=20,
-    )
+    # Native wheels are much larger than metadata. S191 transferred 1.53 MB
+    # in 15 seconds; budget at least 64 KiB/s, with a five-minute file cap.
+    seconds = 15 if output is None else max(30, min(300, math.ceil(size_limit / 65536) + 15))
+    try:
+        result = subprocess.run(
+            ["curl", "-4", "--proto", "=https", "--fail", "--silent", "--show-error",
+             "--connect-timeout", "5", "--max-time", str(seconds), "--speed-limit", "16384",
+             "--speed-time", "30", "--max-filesize", str(size_limit), url],
+            check=True, stdout=output if output is not None else subprocess.PIPE,
+            stderr=subprocess.PIPE, timeout=seconds + 5,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(f"Official download failed: {exc.stderr.decode(errors='replace')}") from exc
     if output is None and len(result.stdout) > size_limit:
         raise ValueError("Metadata exceeds the bounded download size")
     return result.stdout
