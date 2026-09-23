@@ -227,6 +227,8 @@ graph changes are excluded.
 | E033 high-confidence detection readmission, 64 movies | 0.909044 | 0.908002 | Rejected: regressions in both embryos and halves |
 | E034 observed-peak gap filling, 64 movies | 0.909044 | 0.909083 | Rejected: negligible gain, 4 affected wins / 49 losses |
 | E035 per-track motion EMA, 64 movies | 0.909044 | 0.910636 | All frozen gates and actual-output audit passed; submitted |
+| E036 HOCT consensus, protect divisions, 64 movies | 0.909044 | 0.910050 | Not advanced: paired median gain is zero |
+| E037 HOCT consensus, filter divisions, 64 movies | 0.909044 | 0.909414 | Rejected: insufficient gain and group regressions |
 
 E031 improves both embryo groups, both alternating halves, and the adjusted
 edge term. Its 64 paired movies contain 37 wins, 26 losses, and one tie.
@@ -257,12 +259,21 @@ configuration, active-EMA, coordinate/topology and exact-reexport checks.
 Formal submission `56488346` was accepted on `2026-09-23 08:34 UTC` and is
 awaiting scoring. **No E035 public score is established yet.**
 
-HOCT v0 consensus filtering is being assessed separately as E036 (protect
-original divisions) and E037 (filter divisions too). Two complete 100-frame
-movies passed inference, identity and export checks after an explicit guard
-for exact coincident E029 positions. Both arms scored `-0.000992` against
-E029 on this smoke pair. The fixed 64-movie comparison is pending; the smoke
-result establishes no HOCT improvement or submission eligibility.
+HOCT v0 consensus filtering completed all 64 movies without fallback, after
+an explicit identity guard for exact coincident E029 positions. Both arms
+preserve every E029 node and coordinate. E036 protects original divisions
+and gains `0.001006`, but its paired median is zero (22 wins / 17 losses /
+25 ties), failing the original advancement rule. E037 also filters divisions
+and gains only `0.000370`; division TP/FP/FN change from `15/54/60` to
+`11/28/64`, with regressions in one embryo and one alternating half. Neither
+arm is packaged or submitted; the original thresholds are unchanged.
+
+The separate pretrained v5 point detector passed strict checkpoint
+loading, CPU tensor checks and two complete real-image movies. Six of the
+seven labels unmatched by E029 have a nearby free v5 peak. This is a
+many-to-one geometric opportunity bound, not new recall or a tracking score.
+The fixed 64-movie diagnostic compares these opportunities with already
+available E029 peaks before any tracking integration is considered.
 
 ## Reproducibility
 
