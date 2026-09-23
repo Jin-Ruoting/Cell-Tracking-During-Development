@@ -16,14 +16,15 @@ achieved a verified public score of **`0.947`**.
 | E016 embryo-aware dual-seed router | `54972789` | `0.908` | Stable, but no leaderboard gain |
 | E025 guarded global dual-seed method | `55023652` | `0.912` | Verified `+0.004` over E000/E016 |
 | E029 frozen geometric reference | `56462196` | **`0.947`** | Verified `+0.035` over E025 |
+| E031 neighborhood-flow association | `56483615` | `0.946` | Public regression of `0.001` versus E029; retain E029 |
 
 The E025 score belongs to this repository's submitted Kernel version 1:
 [biohub-e025-guarded-dual-seed-center-gaps](https://www.kaggle.com/code/buaaauto/biohub-e025-guarded-dual-seed-center-gaps?scriptVersionId=338254608).
 
 The E029 score belongs to Kernel version 1 of
 [biohub-e029-frozen-geometric-reference](https://www.kaggle.com/code/buaaauto/biohub-e029-frozen-geometric-reference).
-The full public leaderboard snapshot at `2026-09-23 03:47 UTC` places the team
-at **1,001 of 3,820 teams (top 26.20%)**. The top-10% cutoff is rank 382;
+The full public leaderboard snapshot at `2026-09-23 11:55 UTC` places the team
+at **1,018 of 3,834 teams (top 26.55%)**. The top-10% cutoff is rank 383;
 many teams share the displayed score `0.947`, so the target remains unmet.
 
 ## Historical Baseline Leaderboard Snapshot
@@ -221,7 +222,7 @@ graph changes are excluded.
 
 | Candidate | E029 control | Candidate score | Decision |
 |---|---:|---:|---|
-| E031 neighborhood flow, 64 movies | 0.909044 | 0.920862 | All frozen development gates passed |
+| E031 neighborhood flow, 64 movies | 0.909044 | 0.920862 | Development gates passed; public score regressed to 0.946 |
 | E031 excluding 5 author-selection movies | 0.908376 | 0.921565 | Both embryo groups also improved |
 | E032 cross-fitted coordinate calibration, 64 movies | 0.909044 | 0.909374 | Rejected: small pooled gain and group regressions |
 | E033 high-confidence detection readmission, 64 movies | 0.909044 | 0.908002 | Rejected: regressions in both embryos and halves |
@@ -230,12 +231,16 @@ graph changes are excluded.
 | E036 HOCT consensus, protect divisions, 64 movies | 0.909044 | 0.910050 | Not advanced: paired median gain is zero |
 | E037 HOCT consensus, filter divisions, 64 movies | 0.909044 | 0.909414 | Rejected: insufficient gain and group regressions |
 
-E031 improves both embryo groups, both alternating halves, and the adjusted
-edge term. Its 64 paired movies contain 37 wins, 26 losses, and one tie.
+On the development corpus, E031 improves both embryo groups, both alternating
+halves, and the adjusted edge term. Its 64 paired movies contain 37 wins,
+26 losses, and one tie.
 Private Kernel version 1 completed and its 241,653-row output passed an
 independent configuration, coordinate/topology, and exact-reexport audit.
-Formal submission `56483615` was accepted on `2026-09-23 05:16 UTC` and is
-awaiting scoring; **no E031 public score is established yet**.
+Formal submission `56483615` completed with public score **`0.946`**, verified
+at `2026-09-23 11:55 UTC`, versus E029's `0.947`. The development gain of
+`0.011818` did not transfer to this public evaluation. E031 does not replace
+E029 and is not a basis for automatic combined candidates. The exact cause
+of the development/public discrepancy is not established by this result.
 
 E032 preserves all E029 nodes and edges and cross-fits a bounded image-feature
 ridge regressor on two disjoint sets of 32 movies. Its gain falls below the
@@ -248,8 +253,8 @@ The [2026-09-23 method review](docs/METHOD_REVIEW_20260923.md) records
 source-verified candidates for observed-peak recovery, a complementary point
 detector, and HOCT consensus filtering, with reproduction gaps and proposed
 validation gates. The [parallel E033/E034/E035 protocol](docs/PARALLEL_EXPERIMENTS_20260923.md)
-freezes separate detection-readmission, observed-gap and motion-EMA comparisons
-while E031 scoring is pending. Weak-peak capture reproduced the original E029
+records separate detection-readmission, observed-gap and motion-EMA comparisons
+launched while E031 scoring was pending. Weak-peak capture reproduced the original E029
 pre-ILP detection-coordinate hashes on all 64 movies. E033 and E034 failed
 the frozen advancement gates. E035 completed with positive embryo/half gains
 and 34 affected wins, 18 losses and eight ties; four graphs were unchanged.
