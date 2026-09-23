@@ -74,6 +74,8 @@ def run(args):
         raise ValueError("Raw E029 provenance or coverage changed")
     graphs = [p for p in found if p.stem in names]
     raw_hash = flow.graph_tree_sha256(graphs)
+    if args.mode == "full" and raw_hash != "c15c2c5599c32a7558d8cb698c750b266de4885054515c96776f3965789b632f":
+        raise ValueError("Full raw graph bytes differ from the frozen E029/E031 comparison")
     deepcenter = args.data_dir / "deepcenter-v1-full/weights/full_frame_center/best.pt"
     if reference.stability.file_sha256(deepcenter) != reference.DEEPCENTER_SHA256:
         raise ValueError("DeepCenter checkpoint changed")
