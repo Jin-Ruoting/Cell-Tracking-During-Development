@@ -243,6 +243,10 @@ The [2026-09-23 method review](docs/METHOD_REVIEW_20260923.md) records
 source-verified candidates for observed-peak recovery, a complementary point
 detector, and HOCT consensus filtering, with reproduction gaps and proposed
 validation gates. These candidates have no new project performance result.
+The [parallel E033/E034 protocol](docs/PARALLEL_EXPERIMENTS_20260923.md)
+freezes separate detection-readmission and observed-gap comparisons while
+E031 scoring is pending. Weak-peak capture reproduces the original E029
+pre-ILP detection-coordinate hashes before either component can run.
 
 ## Reproducibility
 
