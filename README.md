@@ -224,6 +224,7 @@ graph changes are excluded.
 | E031 neighborhood flow, 64 movies | 0.909044 | 0.920862 | All frozen development gates passed |
 | E031 excluding 5 author-selection movies | 0.908376 | 0.921565 | Both embryo groups also improved |
 | E032 cross-fitted coordinate calibration, 64 movies | 0.909044 | 0.909374 | Rejected: small pooled gain and group regressions |
+| E034 observed-peak gap filling, 64 movies | 0.909044 | 0.909083 | Rejected: negligible gain, 4 affected wins / 49 losses |
 
 E031 improves both embryo groups, both alternating halves, and the adjusted
 edge term. Its 64 paired movies contain 37 wins, 26 losses, and one tie.
@@ -242,11 +243,12 @@ detector or earlier method selection training-disjoint.
 The [2026-09-23 method review](docs/METHOD_REVIEW_20260923.md) records
 source-verified candidates for observed-peak recovery, a complementary point
 detector, and HOCT consensus filtering, with reproduction gaps and proposed
-validation gates. These candidates have no new project performance result.
-The [parallel E033/E034 protocol](docs/PARALLEL_EXPERIMENTS_20260923.md)
-freezes separate detection-readmission and observed-gap comparisons while
-E031 scoring is pending. Weak-peak capture reproduces the original E029
-pre-ILP detection-coordinate hashes before either component can run.
+validation gates. The [parallel E033/E034/E035 protocol](docs/PARALLEL_EXPERIMENTS_20260923.md)
+freezes separate detection-readmission, observed-gap and motion-EMA comparisons
+while E031 scoring is pending. Weak-peak capture reproduced the original E029
+pre-ILP detection-coordinate hashes on all 64 movies. E034 completed but failed
+the frozen advancement gates; E033 and E035 are still running. Extra detections
+did not yield a stable graph-score improvement, so E034 is not submitted.
 
 ## Reproducibility
 
