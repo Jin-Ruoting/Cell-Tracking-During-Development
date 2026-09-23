@@ -272,8 +272,11 @@ The separate pretrained v5 point detector passed strict checkpoint
 loading, CPU tensor checks and two complete real-image movies. Six of the
 seven labels unmatched by E029 have a nearby free v5 peak. This is a
 many-to-one geometric opportunity bound, not new recall or a tracking score.
-The fixed 64-movie diagnostic compares these opportunities with already
-available E029 peaks before any tracking integration is considered.
+The completed 64-movie diagnostic finds 89 additional geometric opportunities
+at the fixed 0.5 threshold (15/74 across embryos), increasing the union with
+the original peak pool from 625 to 714 of 877 unmatched labels. This supports
+further bounded integration experiments; no new tracking score or submission
+is established by the diagnostic.
 
 ## Reproducibility
 
