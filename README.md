@@ -211,6 +211,32 @@ The independently generated output matches the reference author's selected
 output byte for byte. The reference output was downloaded for this comparison
 only after E029's runtime output had been audited and submitted.
 
+## Development Candidates After E029
+
+E031 changes only motion association, using the neighborhood-flow function
+from [Anvith Pothula's x138](https://www.kaggle.com/code/anvithpothula/biohub-x138).
+The original E029 raw detections are reused and the complete control CSV must
+reproduce byte for byte before comparison. The x138 coordinate head and other
+graph changes are excluded.
+
+| Candidate | E029 control | Candidate score | Decision |
+|---|---:|---:|---|
+| E031 neighborhood flow, 64 movies | 0.909044 | 0.920862 | All frozen development gates passed |
+| E031 excluding 5 author-selection movies | 0.908376 | 0.921565 | Both embryo groups also improved |
+| E032 cross-fitted coordinate calibration, 64 movies | 0.909044 | 0.909374 | Rejected: small pooled gain and group regressions |
+
+E031 improves both embryo groups, both alternating halves, and the adjusted
+edge term. Its 64 paired movies contain 37 wins, 26 losses, and one tie.
+Private Kernel version 1 is undergoing execution validation; **no E031 public
+score is established yet**.
+
+E032 preserves all E029 nodes and edges and cross-fits a bounded image-feature
+ridge regressor on two disjoint sets of 32 movies. Its gain falls below the
+fixed 0.001 threshold; one embryo and one half regress. It is not selected for
+deployment. All comparisons remain adaptive public-training development
+evidence; cross-fitting the new regressor does not make the pretrained
+detector or earlier method selection training-disjoint.
+
 ## Reproducibility
 
 - No hidden-test labels, metric exploits, artificial hubs, negative-time
@@ -242,4 +268,10 @@ only after E029's runtime output had been audited and submitted.
   on fixed base detections, with a checksum-pinned evaluation launcher.
 - `kaggle/watch_competition_submission.py`: read-only terminal-score and full
   leaderboard verification for an existing submission; it never submits.
+- `kaggle/run_flow_relink_experiment.py` and `kaggle/build_flow_submission.py`:
+  frozen E031 comparison and packaging, with exact-control and promotion checks.
+- `kaggle/audit_flow_kernel_output.py`: independent downloaded-output,
+  configuration, topology, and exact-reexport checks before an E031 submission.
+- `kaggle/run_coordinate_calibration_experiment.py`: the two-fold E032
+  coordinate-only comparison with fixed topology and displacement bounds.
 - `NOTICE.md`: third-party component and competition-resource notice.
