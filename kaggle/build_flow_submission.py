@@ -20,12 +20,12 @@ reference = flow.reference
 REQUIRED_GATES = (geometric.REQUIRED_GATES - {"pooled_gain_002"}) | {"pooled_gain_minimum"}
 
 
-def check_report(report: dict) -> dict:
+def check_report(report: dict, experiment: str = "E031") -> dict:
     gates = report.get("gates", {})
     if (set(gates) != REQUIRED_GATES or any(value is not True for value in gates.values())
             or report.get("promotion_passed") is not True
             or report.get("minimum_pooled_delta") != 0.001):
-        raise ValueError("Every frozen E031 gate must pass")
+        raise ValueError(f"Every frozen {experiment} gate must pass")
     groups = report["groups"]
     overall = groups["all"]
     if not math.isclose(overall["control"]["score"], flow.E029_SCORE, rel_tol=0, abs_tol=1e-9):
@@ -37,8 +37,8 @@ def check_report(report: dict) -> dict:
                    for key in ("44b6", "6bba", "half0", "half1"))
             or report["paired"]["wins"] <= report["paired"]["losses"]
             or (report["paired"]["median_delta"] or 0) <= 0):
-        raise ValueError("E031 numerical results do not satisfy its frozen gates")
-    return {"selection_policy": "all_frozen_e031_gates", "minimum_pooled_delta": 0.001,
+        raise ValueError(f"{experiment} numerical results do not satisfy its frozen gates")
+    return {"selection_policy": f"all_frozen_{experiment.lower()}_gates", "minimum_pooled_delta": 0.001,
             "official_control_score": overall["control"]["score"],
             "official_candidate_score": overall["candidate"]["score"],
             "official_component_deltas": overall["delta"]}
@@ -89,13 +89,13 @@ def require_promotion(run_dir: Path, flow_function: str) -> dict:
             "raw_graph_tree_sha256": manifest["raw_graph_tree_sha256"]}
 
 
-def check_author_exclusion(run_dir: Path, runtime_dir: Path, scorer_dir: Path) -> dict:
+def check_author_exclusion(run_dir: Path, runtime_dir: Path, scorer_dir: Path, experiment: str = "E031") -> dict:
     report = json.loads((run_dir / "stability.json").read_text())
     rows = report["official_rows"]
     names = sorted(rows["control"])
     if (names != sorted(rows["candidate"])
             or reference.stability.movie_names_sha256(names) != reference.CORPUS_SHA256):
-        raise ValueError("Complete E031 per-movie evidence is missing")
+        raise ValueError(f"Complete {experiment} per-movie evidence is missing")
     remaining = sorted(set(names) - geometric.AUTHOR_SELECTION_NAMES)
     if len(remaining) != 59:
         raise ValueError("Author-selection overlap changed")
@@ -109,7 +109,7 @@ def check_author_exclusion(run_dir: Path, runtime_dir: Path, scorer_dir: Path) -
         groups[key] = {"n": len(subset), "control": control, "candidate": candidate,
                        "delta": reference.stability.summary_delta(control, candidate)}
     if any(not group["delta"]["score"] > 0 for group in groups.values()):
-        raise ValueError("E031 failed the frozen author-exclusion check")
+        raise ValueError(f"{experiment} failed the author-exclusion check: {groups}")
     return {"excluded": sorted(set(names) & geometric.AUTHOR_SELECTION_NAMES),
             "groups": groups, "passed": True,
             "evidence_boundary": "Outside author-selection movies; still adaptive development, not training-disjoint CV"}
