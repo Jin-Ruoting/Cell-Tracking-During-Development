@@ -48,3 +48,9 @@ association function from
 on the frozen E029 detector graph. Its externally acquired Notebook is
 checksum-pinned. Only the named association function is extracted; the
 coordinate-regression head and the remaining x138 changes are excluded.
+
+`kaggle/coordinate_calibration.py` separately explores the public x138 idea
+of a central image feature and six directional feature differences. It uses
+trilinear sampling at final E029 graph locations and our own cross-fitted,
+bounded ridge regressor. The author's private coordinate head is not used
+or reproduced. Node and edge identities are preserved in this experiment.
