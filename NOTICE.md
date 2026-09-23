@@ -41,3 +41,10 @@ The runner requires the separately acquired, checksum-pinned reference
 Notebook and the original model artifacts. It does not redistribute them.
 This reproduction is an external method comparison, not an originality or
 leaderboard-score claim for this repository.
+
+`kaggle/run_flow_relink_experiment.py` evaluates the neighborhood-flow
+association function from
+[Anvith Pothula's biohub x138](https://www.kaggle.com/code/anvithpothula/biohub-x138)
+on the frozen E029 detector graph. Its externally acquired Notebook is
+checksum-pinned. Only the named association function is extracted; the
+coordinate-regression head and the remaining x138 changes are excluded.

@@ -227,11 +227,13 @@ def evaluate(args, names: list[str]) -> dict:
     if len(names) == 64 and expected_control_score is not None and not math.isclose(
         float(groups["all"]["control"]["score"]), expected_control_score, rel_tol=0, abs_tol=1e-9
     ):
-        raise ValueError("Official E025 control score no longer reproduces S157")
+        raise ValueError("Official control score no longer reproduces its frozen reference")
     affected = stability.paired_stats([r for r in records if r["affected"]])
+    minimum_gain = getattr(args, "minimum_pooled_delta", 0.002)
+    pooled_gate = "pooled_gain_002" if minimum_gain == 0.002 else "pooled_gain_minimum"
     gates = {
         "full_corpus": len(names) == 64,
-        "pooled_gain_002": groups["all"]["delta"]["score"] >= 0.002,
+        pooled_gate: groups["all"]["delta"]["score"] >= minimum_gain,
         "adjusted_edge_not_regressed": groups["all"]["delta"]["adj_edge_jaccard"] >= 0,
         "both_embryos_positive": all(groups[g]["delta"]["score"] > 0 for g in ("44b6", "6bba")),
         "both_halves_positive": len(names) == 64 and all(
@@ -242,6 +244,7 @@ def evaluate(args, names: list[str]) -> dict:
     report = {"experiment": getattr(args, "experiment", "E029 frozen public geometric reference"), "groups": groups,
               "gates": gates, "promotion_passed": all(gates.values()), "paired": affected,
               "per_movie": records, "graph_signatures": signatures, "official_rows": rows,
+              "minimum_pooled_delta": minimum_gain,
               "evidence_boundary": "Two-embryo-stratified development evaluation; not training-disjoint CV"}
     (args.output_dir / "stability.json").write_text(json.dumps(report, indent=2) + "\n")
     with (args.output_dir / "per_movie.csv").open("w", newline="") as handle:
