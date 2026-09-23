@@ -25,9 +25,21 @@ reference = flow.reference
 CONTROL_GRAPH_SHA256 = "50ac680ef53c7456ea00fd1358ea706b33c61d62fb6e5f4b3ed7748cf6581aff"
 
 
-def retain_edges(pairs, consensus, protect_divisions):
+def unique_positions(ids, points):
+    """Represent each coincident position once, without inventing coordinates."""
+    order = np.argsort(ids)
+    _, first, inverse, counts = np.unique(points[order], axis=0, return_index=True,
+                                          return_inverse=True, return_counts=True)
+    selected = order[np.sort(first)]
+    ambiguous = set(map(int, ids[order][counts[inverse] > 1]))
+    return ids[selected], points[selected], ambiguous
+
+
+def retain_edges(pairs, consensus, protect_divisions, ambiguous_ids=()):
     degree = Counter(source for source, _ in pairs)
-    return [pair in consensus or (protect_divisions and degree[pair[0]] == 2) for pair in pairs]
+    ambiguous_ids = set(ambiguous_ids)
+    return [pair[0] in ambiguous_ids or pair[1] in ambiguous_ids or pair in consensus
+            or (protect_divisions and degree[pair[0]] == 2) for pair in pairs]
 
 
 def infer_movie(args):
@@ -44,6 +56,8 @@ def infer_movie(args):
         raise ValueError("Frozen HOCT inputs changed")
     with np.load(args.input_nodes, allow_pickle=False) as data:
         ids, points = data["ids"], data["points"]
+    original_count = len(ids)
+    ids, points, ambiguous = unique_positions(ids, points)
     started = time.monotonic()
     images = np.asarray(zarr.open_group(str(args.image), mode="r")["0"][:])
     if images.ndim != 4 or images.shape[0] != 100 or images.dtype != np.uint16:
@@ -69,8 +83,10 @@ def infer_movie(args):
     # The veto preserves all E029 nodes, including any not selected by HOCT.
     # Record HOCT coverage explicitly instead of silently replacing its graph.
     np.savez_compressed(args.output_dir / "pairs.npz", pairs=np.asarray(pairs, dtype=np.int64))
-    receipt = {"movie": args.image.stem, "frames": len(images), "input_nodes": len(ids),
-               "solution_nodes": len(mapping), "solution_node_fraction": len(mapping) / len(ids),
+    receipt = {"movie": args.image.stem, "frames": len(images), "input_nodes": original_count,
+               "represented_positions": len(ids), "ambiguous_node_ids": sorted(ambiguous),
+               "solution_nodes": len(mapping), "solution_node_fraction": len(mapping) / original_count,
+               "represented_position_coverage": len(mapping) / len(ids),
                "edges": len(pairs), "max_snap_distance_um": max_distance,
                "prepare_seconds": prepared - started, "inference_audit_seconds": time.monotonic() - prepared,
                "input_sha256": args.input_sha256,
@@ -98,6 +114,7 @@ def run(args):
                 "radius_um": 3.0, "max_delta_t": 1, "tile": [5, 32, 128, 128],
                 "overlap": [1, 8, 16, 16], "solver": "HOCT 0.2.0 defaults",
                 "max_seconds_per_movie": 900, "minimum_pooled_delta": 0.001,
+                "collision_policy": "one lowest-id representative per exact TZYX position; preserve all edges incident to every coincident node",
                 "runtime_parameter_search": False, "all_e029_nodes_preserved": True,
                 "git_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()}
     (args.output_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
@@ -154,10 +171,13 @@ def run(args):
             pairs = list(zip(edges.source_id.astype(int), edges.target_id.astype(int)))
             with np.load(tasks[name] / "pairs.npz", allow_pickle=False) as data:
                 consensus = set(map(tuple, data["pairs"].tolist()))
-            mask = retain_edges(pairs, consensus, protect)
+            receipt = json.loads((tasks[name] / "receipt.json").read_text())
+            ambiguous = set(receipt["ambiguous_node_ids"])
+            mask = retain_edges(pairs, consensus, protect, ambiguous)
             keep.loc[edges.index] = mask
             counts.append({"dataset": name, "edges_before": len(pairs), "edges_after": sum(mask),
-                           "removed_edges": len(pairs) - sum(mask)})
+                           "removed_edges": len(pairs) - sum(mask), "ambiguous_nodes": len(ambiguous),
+                           "protected_ambiguous_incident_edges": sum(a in ambiguous or b in ambiguous for a, b in pairs)})
         candidate = frame.loc[keep].copy()
         original_nodes = frame.loc[frame.row_type == "node"].drop(columns="id")
         candidate_nodes = candidate.loc[candidate.row_type == "node"].drop(columns="id")

@@ -226,7 +226,7 @@ graph changes are excluded.
 | E032 cross-fitted coordinate calibration, 64 movies | 0.909044 | 0.909374 | Rejected: small pooled gain and group regressions |
 | E033 high-confidence detection readmission, 64 movies | 0.909044 | 0.908002 | Rejected: regressions in both embryos and halves |
 | E034 observed-peak gap filling, 64 movies | 0.909044 | 0.909083 | Rejected: negligible gain, 4 affected wins / 49 losses |
-| E035 per-track motion EMA, 64 movies | 0.909044 | 0.910636 | All frozen development gates passed; packaging checks pending |
+| E035 per-track motion EMA, 64 movies | 0.909044 | 0.910636 | All frozen gates and actual-output audit passed; submitted |
 
 E031 improves both embryo groups, both alternating halves, and the adjusted
 edge term. Its 64 paired movies contain 37 wins, 26 losses, and one tie.
@@ -251,8 +251,11 @@ while E031 scoring is pending. Weak-peak capture reproduced the original E029
 pre-ILP detection-coordinate hashes on all 64 movies. E033 and E034 failed
 the frozen advancement gates. E035 completed with positive embryo/half gains
 and 34 affected wins, 18 losses and eight ties; four graphs were unchanged.
-It advances separately to private Kernel packaging and actual-output checks.
-No E035 public score is established.
+The additional 59-movie exclusion review also passed (`+0.001672`). Private
+Kernel version 1 completed, and its 241,367-row output independently passed
+configuration, active-EMA, coordinate/topology and exact-reexport checks.
+Formal submission `56488346` was accepted on `2026-09-23 08:34 UTC` and is
+awaiting scoring. **No E035 public score is established yet.**
 
 ## Reproducibility
 

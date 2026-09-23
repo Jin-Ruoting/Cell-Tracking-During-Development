@@ -6,10 +6,20 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "kaggle"))
 from probe_hoct_consensus import rasterize, snap_nodes
-from run_hoct_consensus_experiment import retain_edges
+from run_hoct_consensus_experiment import retain_edges, unique_positions
 
 
 class GeometryTests(unittest.TestCase):
+    def test_coincident_nodes_keep_all_incident_edges_and_no_coordinate_shift(self):
+        ids = np.array([9, 2, 5])
+        points = np.array([[0, 3, 4, 5], [0, 3, 4, 5], [1, 3, 4, 5]], dtype=float)
+        selected_ids, selected_points, ambiguous = unique_positions(ids, points)
+        self.assertEqual(selected_ids.tolist(), [2, 5])
+        np.testing.assert_array_equal(selected_points, points[[1, 2]])
+        self.assertEqual(ambiguous, {2, 9})
+        pairs = [(1, 2), (9, 5), (5, 6)]
+        self.assertEqual(retain_edges(pairs, set(), False, ambiguous), [True, True, False])
+
     def test_consensus_preserves_both_division_children_only_in_protected_arm(self):
         pairs = [(1, 2), (1, 3), (2, 4), (3, 5)]
         consensus = {(1, 2), (2, 4), (99, 100)}
