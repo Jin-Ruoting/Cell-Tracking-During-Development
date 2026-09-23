@@ -6,9 +6,16 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "kaggle"))
 from probe_hoct_consensus import rasterize, snap_nodes
+from run_hoct_consensus_experiment import retain_edges
 
 
 class GeometryTests(unittest.TestCase):
+    def test_consensus_preserves_both_division_children_only_in_protected_arm(self):
+        pairs = [(1, 2), (1, 3), (2, 4), (3, 5)]
+        consensus = {(1, 2), (2, 4), (99, 100)}
+        self.assertEqual(retain_edges(pairs, consensus, True), [True, True, True, False])
+        self.assertEqual(retain_edges(pairs, consensus, False), [True, False, True, False])
+
     def test_physical_radius_and_lost_node_rejection(self):
         points = np.array([[0, 3, 12, 12]], dtype=float)
         labels = rasterize(points, (1, 7, 25, 25))
