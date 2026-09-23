@@ -79,7 +79,7 @@ def run(args):
         import numpy as np
         import torch
         import zarr
-        from tracking_cellmot.io import open_dataset
+        from biohub_tracking.io import open_dataset
 
         torch.set_num_threads(4)
         torch.set_num_interop_threads(1)
@@ -106,6 +106,8 @@ def run(args):
             started = time.monotonic()
             image_path = args.data_dir / "train" / f"{name}.zarr"
             dataset = open_dataset(image_path, normalize=False, load_image=False, require_tracks=False)
+            if dataset.tracks is not None or tuple(dataset.scale) != (1.625, 0.40625, 0.40625):
+                raise ValueError("Unexpected labels or physical voxel scale in prediction input")
             image = zarr.open_group(str(image_path), mode="r")["0"]
             if len(image.shape) != 4 or image.shape[0] != 100 or image.dtype != np.uint16:
                 raise ValueError("Expected a complete 100-frame uint16 movie")
