@@ -257,6 +257,13 @@ configuration, active-EMA, coordinate/topology and exact-reexport checks.
 Formal submission `56488346` was accepted on `2026-09-23 08:34 UTC` and is
 awaiting scoring. **No E035 public score is established yet.**
 
+HOCT v0 consensus filtering is being assessed separately as E036 (protect
+original divisions) and E037 (filter divisions too). Two complete 100-frame
+movies passed inference, identity and export checks after an explicit guard
+for exact coincident E029 positions. Both arms scored `-0.000992` against
+E029 on this smoke pair. The fixed 64-movie comparison is pending; the smoke
+result establishes no HOCT improvement or submission eligibility.
+
 ## Reproducibility
 
 - No hidden-test labels, metric exploits, artificial hubs, negative-time
