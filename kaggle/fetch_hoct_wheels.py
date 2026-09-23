@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Fetch fixed pure-Python HOCT reference wheels from official PyPI metadata."""
+"""Fetch fixed, platform-compatible HOCT wheels from official PyPI metadata."""
 import argparse
 import hashlib
 import json
 from pathlib import Path
 import subprocess
 from urllib.parse import urlparse
+
+from packaging.tags import sys_tags
+from packaging.utils import canonicalize_name, parse_wheel_filename
 
 PACKAGES = {"hoct": "0.2.0", "spatial-graph": "0.1.1", "pooch": "1.9.0"}
 
@@ -31,16 +34,24 @@ def main():
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     records = {}
+    supported = {tag: index for index, tag in enumerate(sys_tags())}
     for package, version in PACKAGES.items():
         url = f"https://pypi.org/pypi/{package}/{version}/json"
         metadata = json.loads(fetch(url, 2 * 1024 * 1024))
         if metadata["info"]["version"] != version:
             raise ValueError("PyPI version mismatch")
-        choices = [item for item in metadata["urls"] if item["filename"].endswith("-py3-none-any.whl")
-                   and item["packagetype"] == "bdist_wheel" and not item["yanked"]]
-        if len(choices) != 1:
-            raise ValueError(f"Expected one pure-Python wheel for {package}")
-        wheel = choices[0]
+        choices = []
+        for item in metadata["urls"]:
+            if item["packagetype"] != "bdist_wheel" or item["yanked"]:
+                continue
+            name, wheel_version, _, tags = parse_wheel_filename(item["filename"])
+            compatible = tags.intersection(supported)
+            if (canonicalize_name(name) == canonicalize_name(package)
+                    and str(wheel_version) == version and compatible):
+                choices.append((min(supported[tag] for tag in compatible), item["filename"], item))
+        if not choices:
+            raise ValueError(f"No compatible official wheel for {package} {version}")
+        wheel = min(choices, key=lambda value: value[:2])[2]
         if urlparse(wheel["url"]).hostname != "files.pythonhosted.org" or Path(wheel["filename"]).name != wheel["filename"]:
             raise ValueError("Unexpected official wheel host or filename")
         target = args.output_dir / wheel["filename"]
