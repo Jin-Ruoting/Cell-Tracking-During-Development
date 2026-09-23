@@ -4,10 +4,25 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 from urllib.parse import urlparse
-from urllib.request import urlopen
 
 PACKAGES = {"hoct": "0.2.0", "spatial-graph": "0.1.1", "pooch": "1.9.0"}
+
+
+def fetch(url, size_limit, output=None):
+    """Bound the entire request, including resolution, using verified IPv4 transport."""
+    if urlparse(url).scheme != "https":
+        raise ValueError("Official downloads must use HTTPS")
+    result = subprocess.run(
+        ["curl", "-4", "--proto", "=https", "--fail", "--silent", "--show-error",
+         "--connect-timeout", "5", "--max-time", "15", "--max-filesize", str(size_limit), url],
+        check=True, stdout=output if output is not None else subprocess.PIPE,
+        stderr=subprocess.PIPE, timeout=20,
+    )
+    if output is None and len(result.stdout) > size_limit:
+        raise ValueError("Metadata exceeds the bounded download size")
+    return result.stdout
 
 
 def main():
@@ -18,8 +33,7 @@ def main():
     records = {}
     for package, version in PACKAGES.items():
         url = f"https://pypi.org/pypi/{package}/{version}/json"
-        with urlopen(url, timeout=10) as response:
-            metadata = json.load(response)
+        metadata = json.loads(fetch(url, 2 * 1024 * 1024))
         if metadata["info"]["version"] != version:
             raise ValueError("PyPI version mismatch")
         choices = [item for item in metadata["urls"] if item["filename"].endswith("-py3-none-any.whl")
@@ -33,11 +47,8 @@ def main():
         partial = target.with_suffix(target.suffix + ".part")
         if target.exists() or partial.exists():
             raise FileExistsError(target)
-        with urlopen(wheel["url"], timeout=15) as response, partial.open("xb") as handle:
-            while block := response.read(65536):
-                handle.write(block)
-                if handle.tell() > wheel["size"]:
-                    raise ValueError("Download exceeds official size")
+        with partial.open("xb") as handle:
+            fetch(wheel["url"], wheel["size"], output=handle)
         digest = hashlib.sha256(partial.read_bytes()).hexdigest()
         if partial.stat().st_size != wheel["size"] or digest != wheel["digests"]["sha256"]:
             raise ValueError("Official wheel size/hash mismatch")
