@@ -227,8 +227,10 @@ graph changes are excluded.
 
 E031 improves both embryo groups, both alternating halves, and the adjusted
 edge term. Its 64 paired movies contain 37 wins, 26 losses, and one tie.
-Private Kernel version 1 is undergoing execution validation; **no E031 public
-score is established yet**.
+Private Kernel version 1 completed and its 241,653-row output passed an
+independent configuration, coordinate/topology, and exact-reexport audit.
+Formal submission `56483615` was accepted on `2026-09-23 05:16 UTC` and is
+awaiting scoring; **no E031 public score is established yet**.
 
 E032 preserves all E029 nodes and edges and cross-fits a bounded image-feature
 ridge regressor on two disjoint sets of 32 movies. Its gain falls below the
