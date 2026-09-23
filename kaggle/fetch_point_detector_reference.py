@@ -27,11 +27,11 @@ def acquire(out, name, size):
     destination = out / name
     if pending.exists() or destination.exists():
         raise FileExistsError("Do not overwrite an earlier reference download")
-    seconds = 30 if size < 1000000 else min(900, math.ceil(size / 131072) + 60)
+    seconds = 30 if size < 1000000 else min(1200, math.ceil(size / 65536) + 60)
     command = ["curl", "-4", "--fail", "--silent", "--show-error", "--location",
                "--proto", "=https", "--proto-redir", "=https", "--connect-timeout", "5",
                "--max-time", str(seconds), "--max-filesize", str(math.ceil(size * 1.1) + 65536),
-               "--speed-limit", "65536", "--speed-time", "30", "--output", str(pending),
+               "--speed-limit", "16384", "--speed-time", "60", "--output", str(pending),
                "--write-out", "%{http_code} %{size_download} %{time_total}\n", BASE + name]
     result = subprocess.run(command, capture_output=True, text=True, timeout=seconds + 10)
     (out / (name + ".download.log")).write_text(result.stdout + result.stderr)
@@ -69,17 +69,21 @@ def acquire(out, name, size):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--files", nargs="+", choices=list(FILES), default=list(FILES))
     args = parser.parse_args()
+    if len(set(args.files)) != len(args.files):
+        parser.error("Each public filename must occur only once")
     out = args.output_dir.resolve()
     out.mkdir(parents=True, exist_ok=False)
     report = {"dataset": "hengck23/hengck23-cell-point-detector-demo", "artifacts": [],
+              "requested_files": args.files,
               "started_at": datetime.now(timezone.utc).isoformat(),
               "model_executed": False, "weights_loaded": False, "gpu_used": False,
               "status": "acquiring", "official_sizes_verified": False, "dataset_license": "unconfirmed",
               "evidence_boundary": "Reference acquisition only; no model or quality result"}
     try:
-        for name, size in FILES.items():
-            report["artifacts"].append(acquire(out, name, size))
+        for name in args.files:
+            report["artifacts"].append(acquire(out, name, FILES[name]))
             (out / "acquisition_receipt.json").write_text(json.dumps(report, indent=2) + "\n")
             print(json.dumps(report["artifacts"][-1]), flush=True)
         report["status"] = "reference_artifacts_acquired_no_inference"
