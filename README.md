@@ -239,6 +239,11 @@ deployment. All comparisons remain adaptive public-training development
 evidence; cross-fitting the new regressor does not make the pretrained
 detector or earlier method selection training-disjoint.
 
+The [2026-09-23 method review](docs/METHOD_REVIEW_20260923.md) records
+source-verified candidates for observed-peak recovery, a complementary point
+detector, and HOCT consensus filtering, with reproduction gaps and proposed
+validation gates. These candidates have no new project performance result.
+
 ## Reproducibility
 
 - No hidden-test labels, metric exploits, artificial hubs, negative-time
