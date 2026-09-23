@@ -5,8 +5,8 @@ Kaggle research competition
 [Biohub - Cell Tracking During Development](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development).
 
 This repository contains clean single-seed and dual-seed tracking pipelines,
-plus attributed external-method comparisons. The executable E025 method has
-achieved a verified public score of `0.912`.
+plus attributed external-method comparisons. The executable E029 method has
+achieved a verified public score of **`0.947`**.
 
 ## Verified Results
 
@@ -14,10 +14,17 @@ achieved a verified public score of `0.912`.
 |---|---:|---:|---|
 | E000 clean single-seed baseline | `54923913` | `0.908` | Verified single-seed baseline |
 | E016 embryo-aware dual-seed router | `54972789` | `0.908` | Stable, but no leaderboard gain |
-| E025 guarded global dual-seed method | `55023652` | **`0.912`** | Verified `+0.004` over E000/E016 |
+| E025 guarded global dual-seed method | `55023652` | `0.912` | Verified `+0.004` over E000/E016 |
+| E029 frozen geometric reference | `56462196` | **`0.947`** | Verified `+0.035` over E025 |
 
 The E025 score belongs to this repository's submitted Kernel version 1:
 [biohub-e025-guarded-dual-seed-center-gaps](https://www.kaggle.com/code/buaaauto/biohub-e025-guarded-dual-seed-center-gaps?scriptVersionId=338254608).
+
+The E029 score belongs to Kernel version 1 of
+[biohub-e029-frozen-geometric-reference](https://www.kaggle.com/code/buaaauto/biohub-e029-frozen-geometric-reference).
+The full public leaderboard snapshot at `2026-09-23 03:47 UTC` places the team
+at **1,001 of 3,820 teams (top 26.20%)**. The top-10% cutoff is rank 382;
+many teams share the displayed score `0.947`, so the target remains unmet.
 
 ## Historical Baseline Leaderboard Snapshot
 
@@ -163,7 +170,7 @@ calibration, and center-gated gap repair. Because these changes were submitted
 together, the leaderboard result does not establish the isolated causal
 contribution of any one component.
 
-## Frozen External Reference: E029
+## Method C: Frozen External Reference (`0.947`)
 
 E029 reproduces [Aman Atar's Geometric Fusion](https://www.kaggle.com/code/amanatar/biohub-geometric-fusion),
 which extends [Igor Zharov's Harmonic Fusion](https://www.kaggle.com/code/flexonafft/biohub-harmonic-fusion),
