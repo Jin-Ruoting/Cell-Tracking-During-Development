@@ -17,8 +17,8 @@ finish() {
   fi
 }
 trap finish EXIT
-timeout 180 "$python_bin" -m pip download --no-deps --timeout 20 --retries 1 \
-  --dest "$out/wheels" hoct==0.2.0 spatial-graph==0.1.1 pooch==1.9.0 > "$out/install.log" 2>&1
+timeout 90 "$python_bin" -u kaggle/fetch_hoct_wheels.py \
+  --output-dir "$out/wheels" > "$out/install.log" 2>&1
 "$python_bin" - "$out" <<'PY'
 import hashlib
 from pathlib import Path
