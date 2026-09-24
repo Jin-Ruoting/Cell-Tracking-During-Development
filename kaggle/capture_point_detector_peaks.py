@@ -56,6 +56,11 @@ def run(args):
     names = reference.selected_names(args.control_dir, args.mode)
     if args.shard is not None:
         names = names[args.shard::2]
+    run_movies(args, names, subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip())
+
+
+def run_movies(args, names, git_commit):
+    """Capture an explicitly verified cohort; callers own selection provenance."""
     args.output_dir.mkdir(parents=True, exist_ok=False)
     (args.output_dir / "peaks").mkdir()
     manifest = {"purpose": "reviewed_v5_real_image_peaks", "mode": args.mode,
@@ -65,7 +70,7 @@ def run(args):
                 "peak_threshold": THRESHOLD, "peak_kernel": 3,
                 "ground_truth_accessed": False, "submission_created": False,
                 "quality_score": None, "complete": False, "movies": {},
-                "git_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()}
+                "git_commit": git_commit}
     manifest_path = args.output_dir / "run_manifest.json"
 
     def save():

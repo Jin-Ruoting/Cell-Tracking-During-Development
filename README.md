@@ -17,14 +17,15 @@ achieved a verified public score of **`0.947`**.
 | E025 guarded global dual-seed method | `55023652` | `0.912` | Verified `+0.004` over E000/E016 |
 | E029 frozen geometric reference | `56462196` | **`0.947`** | Verified `+0.035` over E025 |
 | E031 neighborhood-flow association | `56483615` | `0.946` | Public regression of `0.001` versus E029; retain E029 |
+| E035 per-track motion EMA | `56488346` | `0.946` | Public regression of `0.001` versus E029; retain E029 |
 
 The E025 score belongs to this repository's submitted Kernel version 1:
 [biohub-e025-guarded-dual-seed-center-gaps](https://www.kaggle.com/code/buaaauto/biohub-e025-guarded-dual-seed-center-gaps?scriptVersionId=338254608).
 
 The E029 score belongs to Kernel version 1 of
 [biohub-e029-frozen-geometric-reference](https://www.kaggle.com/code/buaaauto/biohub-e029-frozen-geometric-reference).
-The full public leaderboard snapshot at `2026-09-23 11:55 UTC` places the team
-at **1,018 of 3,834 teams (top 26.55%)**. The top-10% cutoff is rank 383;
+The full public leaderboard snapshot at `2026-09-24 03:42 UTC` places the team
+at **1,060 of 3,868 teams (top 27.40%)**. The top-10% cutoff is rank 386;
 many teams share the displayed score `0.947`, so the target remains unmet.
 
 ## Historical Baseline Leaderboard Snapshot
@@ -227,7 +228,7 @@ graph changes are excluded.
 | E032 cross-fitted coordinate calibration, 64 movies | 0.909044 | 0.909374 | Rejected: small pooled gain and group regressions |
 | E033 high-confidence detection readmission, 64 movies | 0.909044 | 0.908002 | Rejected: regressions in both embryos and halves |
 | E034 observed-peak gap filling, 64 movies | 0.909044 | 0.909083 | Rejected: negligible gain, 4 affected wins / 49 losses |
-| E035 per-track motion EMA, 64 movies | 0.909044 | 0.910636 | All frozen gates and actual-output audit passed; submitted |
+| E035 per-track motion EMA, 64 movies | 0.909044 | 0.910636 | Development gates passed; public score regressed to 0.946 |
 | E036 HOCT consensus, protect divisions, 64 movies | 0.909044 | 0.910050 | Not advanced: paired median gain is zero |
 | E037 HOCT consensus, filter divisions, 64 movies | 0.909044 | 0.909414 | Rejected: insufficient gain and group regressions |
 
@@ -261,8 +262,10 @@ and 34 affected wins, 18 losses and eight ties; four graphs were unchanged.
 The additional 59-movie exclusion review also passed (`+0.001672`). Private
 Kernel version 1 completed, and its 241,367-row output independently passed
 configuration, active-EMA, coordinate/topology and exact-reexport checks.
-Formal submission `56488346` was accepted on `2026-09-23 08:34 UTC` and is
-awaiting scoring. **No E035 public score is established yet.**
+Formal submission `56488346` completed with public score **`0.946`**, verified
+through the authenticated API on `2026-09-24`. Its development gains did not
+transfer to the public evaluation. E029 remains the control; E035 is not
+combined with the next candidate.
 
 HOCT v0 consensus filtering completed all 64 movies without fallback, after
 an explicit identity guard for exact coincident E029 positions. Both arms
@@ -282,6 +285,12 @@ at the fixed 0.5 threshold (15/74 across embryos), increasing the union with
 the original peak pool from 625 to 714 of 877 unmatched labels. This supports
 further bounded integration experiments; no new tracking score or submission
 is established by the diagnostic.
+
+The next fixed comparison is [E038 observation-supported one-frame bridges](docs/POINT_GAP_EXPERIMENT_20260923.md).
+The [Kaggle development adapter](docs/KAGGLE_DEVELOPMENT.md) provides private
+compute when the primary server is unavailable, while retaining the frozen
+corpus, historical control replay and full advancement gates. The adapter's
+availability is not experimental or public-score evidence.
 
 ## Reproducibility
 
