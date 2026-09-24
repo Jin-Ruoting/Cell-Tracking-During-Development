@@ -15,6 +15,21 @@ import run_kaggle_development as cloud
 
 
 class KaggleDevelopmentTests(unittest.TestCase):
+    def test_kaggle_working_paths_are_relocated_only_once(self):
+        sources = ["pass", "pass", 'COMP_DIR = Path("old")\nWORKING_DIR = Path("/kaggle/working")',
+                   'ARTIFACTS = Path("old")', '{"PYTHONPATH": "src"}\n{"PYTHONPATH": "src"}',
+                   'other = "/kaggle/working/output"']
+        root = Path("/kaggle/working/logs/run")
+        adapted = cloud.relocated_sources(sources, root / "input", root / "control", Path("/kaggle/input/support"))
+        namespace = {"Path": Path}
+        for i in (2, 3, 5):
+            exec(adapted[i], namespace)
+        self.assertEqual(namespace["COMP_DIR"], root / "input")
+        self.assertEqual(namespace["WORKING_DIR"], root / "control")
+        self.assertEqual(namespace["ARTIFACTS"], Path("/kaggle/input/support"))
+        self.assertEqual(namespace["other"], str(root / "control/output"))
+        self.assertIn('Path("old")', sources[2])
+
     def test_historical_selection_is_balanced_deterministic_and_excludes_visible_movies(self):
         stats = {}
         for embryo in ("44b6", "6bba"):

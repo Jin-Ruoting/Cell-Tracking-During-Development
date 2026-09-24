@@ -59,6 +59,19 @@ def cohort(manifest: dict) -> tuple[dict, list[str]]:
     return selection, corpus.validate_manifest(selection, manifest["mode"])
 
 
+def relocated_sources(sources: list[str], input_root: Path, run_dir: Path, support: Path) -> list[str]:
+    # Relocate original literals before injecting absolute Kaggle paths. Doing
+    # this afterwards would recursively prefix the new /kaggle/working paths.
+    sources = list(sources)
+    for i in range(2, 6):
+        sources[i] = sources[i].replace("/kaggle/working", str(run_dir))
+    sources[2] = reference.adapt_cell(sources[2], {
+        "COMP_DIR": f"Path({str(input_root)!r})", "WORKING_DIR": f"Path({str(run_dir)!r})"})
+    sources[3] = reference.adapt_cell(sources[3], {"ARTIFACTS": f"Path({str(support)!r})"})
+    sources[4] = reference.adapt_worker_paths(sources[4])
+    return sources
+
+
 def control(bundle: Path, manifest: dict):
     sources = reference.read_reference(bundle / "reference.ipynb")
     data = mounted("", "biohub-cell-tracking-during-development", competition=True)
@@ -83,15 +96,11 @@ def control(bundle: Path, manifest: dict):
                        "BIOHUB_DEEPCENTER_ARTIFACT_MANIFEST": str(center / "ARTIFACT_MANIFEST.json"),
                        "BIOHUB_DEEPCENTER_CHECKPOINT": str(center / "weights/full_frame_center/best.pt"),
                        "BIOHUB_VALIDATOR_ENABLE": "0"})
-    sources[2] = reference.adapt_cell(sources[2], {
-        "COMP_DIR": f"Path({str(input_root)!r})", "WORKING_DIR": f"Path({str(run_dir)!r})"})
     # Kaggle needs the reference's offline dependency installation, unlike the
     # already-provisioned server. No inference or policy statement is replaced.
-    sources[3] = reference.adapt_cell(sources[3], {"ARTIFACTS": f"Path({str(support)!r})"})
-    sources[4] = reference.adapt_worker_paths(sources[4])
+    sources = relocated_sources(sources, input_root, run_dir, support)
     for i in (2, 3):
-        exec(compile(sources[i].replace("/kaggle/working", str(run_dir)),
-                     f"reference:cell-{i}", "exec"), namespace)
+        exec(compile(sources[i], f"reference:cell-{i}", "exec"), namespace)
     selection = corpus.reconstruct(data / "train", manifest["mode"])
     names = corpus.validate_manifest(selection, manifest["mode"])
     save(WORK / "cohort.json", selection)
@@ -109,8 +118,7 @@ def control(bundle: Path, manifest: dict):
     save(WORK / "run_manifest.json", receipt)
     for i in (4, 5):
         print(f"EXECUTING FROZEN REFERENCE CELL {i}", flush=True)
-        exec(compile(sources[i].replace("/kaggle/working", str(run_dir)),
-                     f"reference:cell-{i}", "exec"), namespace)
+        exec(compile(sources[i], f"reference:cell-{i}", "exec"), namespace)
     predictor = reference.stability.file_sha256(run_dir / "tracking_repo/scripts/predict_unet_transformer.py")
     if predictor != PREDICTOR_SHA256:
         raise ValueError("Patched E029 predictor differs from the server's frozen source")
