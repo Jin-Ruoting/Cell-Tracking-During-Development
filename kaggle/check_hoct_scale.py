@@ -123,7 +123,7 @@ def case(bundle, flavour):
     import tracksdata as td
     import hoct._api as api
     from hoct.features.graph import create_graph
-    from tracksdata.functional import TilingScheme
+    from tracksdata.functional import TilingScheme, apply_tiled
 
     if Path(api.__file__).resolve() != bundle / "upstream" / flavour / "hoct/_api.py":
         raise ValueError("Wrong HOCT source imported")
@@ -142,6 +142,8 @@ def case(bundle, flavour):
     expected = [(centres[0], centres[1 if flavour == "old" else 2])]
     if pairs != expected:
         raise ValueError(f"Synthetic anisotropic candidate contract differs: {pairs}")
+    details = {"flavour": flavour, "candidate_pairs_tzyx": pairs, "datasets": {}, "passed": False}
+    save(WORK / (flavour + "_details.json"), details)
     kwargs = {"scale": SCALE} if flavour == "fixed" else {}
     reports = {}
     for kind, tiling in (("frame", None), ("tiled", TilingScheme(tile_shape=labels.shape, overlap_shape=(0, 0, 0, 0)))):
@@ -152,7 +154,17 @@ def case(bundle, flavour):
         item = items[0]
         positions = item["node_pos"].numpy()
         original = np.asarray([points[n][1:] for n in item["node_id"].tolist()])
-        intended = original * (np.asarray(SCALE[1:]) if flavour == "fixed" else 1)
+        origin = np.zeros(3)
+        if kind == "tiled":
+            tiles = [tile for tile in apply_tiled(graph=graph, tiling_scheme=tiling, func=lambda value: value)
+                     if tile.graph_filter.num_edges() > 0]
+            if len(tiles) != 1:
+                raise ValueError("Unexpected number of nonempty tiles")
+            origin = np.asarray([part.start for part in tiles[0].slicing[1:]])
+        intended = (original - origin) * (np.asarray(SCALE[1:]) if flavour == "fixed" else 1)
+        details["datasets"][kind] = {"positions": positions.tolist(), "expected": intended.tolist(),
+                                    "tile_origin_voxels": origin.tolist()}
+        save(WORK / (flavour + "_details.json"), details)
         if not np.allclose(positions, intended, rtol=0, atol=1e-6):
             raise ValueError(f"{kind}: dataset positions do not follow the expected units")
         if (not torch.isfinite(item["node_feats"]).all() or item["edge_targets"] is not None
@@ -166,6 +178,7 @@ def case(bundle, flavour):
         if not transformed.equals(repeat) or not np.allclose(transformed["area"], expected_area):
             raise ValueError("Physical area scaling is missing or nondeterministic")
         reports[kind] = {"node_positions": positions.tolist(), "feature_shape": list(item["node_feats"].shape),
+                         "tile_origin_voxels": origin.tolist(),
                          "area_after_transform": transformed["area"].to_list(), "finite": True,
                          "deterministic_scale": True, "gt_fields_absent": True}
     result = {"flavour": flavour, "passed": True, "candidate_pairs_tzyx": pairs,
@@ -173,6 +186,8 @@ def case(bundle, flavour):
               "physical_displacements_um": {"z_case": 9.75, "y_case": 4.875}, "datasets": reports,
               "versions": {n: importlib.metadata.version(n) for n in ("torch", "numpy", "polars", "tracksdata", "spatial-graph")}}
     save(WORK / (flavour + ".json"), result)
+    details["passed"] = True
+    save(WORK / (flavour + "_details.json"), details)
     print(json.dumps(result), flush=True)
 
 
