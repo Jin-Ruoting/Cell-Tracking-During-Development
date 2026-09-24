@@ -11,11 +11,11 @@ import ast
 import base64
 import hashlib
 import json
+import lzma
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import tarfile
-import zlib
 
 import run_geometric_reference as reference
 
@@ -109,16 +109,16 @@ def completed_smoke_files(directory: Path) -> tuple[dict[str, str], dict]:
 
 
 def bootstrap_source(files: dict[str, str]) -> str:
-    compressed = zlib.compress(json.dumps(files, ensure_ascii=False, sort_keys=True).encode(), level=9)
-    encoded = base64.b64encode(compressed).decode()
-    return f'''import base64, hashlib, json, os, subprocess, sys, zlib
+    compressed = lzma.compress(json.dumps(files, ensure_ascii=False, sort_keys=True).encode(), preset=6)
+    encoded = base64.b85encode(compressed).decode()
+    return f'''import base64, hashlib, json, lzma, os, subprocess, sys
 from pathlib import Path
 
-payload = base64.b64decode({encoded!r})
+payload = base64.b85decode({encoded!r})
 assert hashlib.sha256(payload).hexdigest() == {sha256(compressed)!r}
 bundle = Path("/kaggle/working/e038-bundle")
 bundle.mkdir(exist_ok=False)
-for name, text in json.loads(zlib.decompress(payload)).items():
+for name, text in json.loads(lzma.decompress(payload)).items():
     target = (bundle / name).resolve()
     if bundle not in target.parents:
         raise ValueError("Invalid bundled path")
@@ -218,6 +218,8 @@ def build(args):
                 "cells": [{"cell_type": "markdown", "metadata": {}, "id": "protocol", "source": intro},
                           {"cell_type": "code", "metadata": {}, "id": "run", "source": source,
                            "outputs": [], "execution_count": None}]}
+    if len(json.dumps(notebook, indent=2).encode()) >= 1_000_000:
+        raise ValueError("Private Notebook exceeds Kaggle's one-megabyte source limit")
     args.output_dir.mkdir(parents=True, exist_ok=False)
     for name, value in (("kernel-metadata.json", metadata), ("e038_development.ipynb", notebook),
                         ("bundle_manifest.json", manifest)):

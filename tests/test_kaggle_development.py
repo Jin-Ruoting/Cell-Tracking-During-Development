@@ -1,3 +1,4 @@
+import ast
 import hashlib
 import json
 from pathlib import Path
@@ -15,6 +16,20 @@ import run_kaggle_development as cloud
 
 
 class KaggleDevelopmentTests(unittest.TestCase):
+    def test_generated_package_preserves_unicode_and_csv_line_endings(self):
+        files = {"code.py": "# 中文\npass\n", "output.csv": "a,b\r\n1,2\r\n" * 1000}
+        tree = ast.parse(build.bootstrap_source(files))
+        prefix = []
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "bundle":
+                break
+            prefix.append(node)
+        namespace = {}
+        exec(compile(ast.Module(body=prefix, type_ignores=[]), "payload-only", "exec"), namespace)
+        loop = next(n for n in tree.body if isinstance(n, ast.For))
+        restored = dict(eval(compile(ast.Expression(loop.iter), "decoded-files", "eval"), namespace))
+        self.assertEqual(restored, files)
+
     def test_recovery_prepares_dependencies_without_copying_models(self):
         order = []
         source = "ARTIFACTS = 'support'\nensure_dependencies(ARTIFACTS)\ncopy_models()"
