@@ -23,6 +23,7 @@ import check_point_detector_runtime as reviewed
 
 WORK = Path("/kaggle/working/logs/v12-cpu-compatibility")
 DOCKER = "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461"
+WEIGHT_SHA256 = "ecd8869de9cf405c1a93a563b4810faad5fd2378f57341e18c4e6b5a87201552"
 
 
 def package(owner: str, output: Path):
@@ -79,7 +80,7 @@ def run(commit: str):
     WORK.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "git_commit": commit, "device": "cpu", "real_image_inference": False,
               "ground_truth_accessed": False, "tracking_run": False, "quality_score": None,
-              "synthetic_input_shape": [1, 1, 64, 64, 64], "weight_sha256_previously_pinned": False}
+              "synthetic_input_shape": [1, 1, 64, 64, 64], "weight_sha256_previously_pinned": True}
     started = time.monotonic()
     try:
         candidates = [Path("/kaggle/input/hengck23-cell-point-detector-demo"),
@@ -93,6 +94,8 @@ def run(commit: str):
             raise ValueError("V12 checkpoint is not the complete publicly listed file")
         report["checkpoint_bytes"] = weight.stat().st_size
         report["checkpoint_sha256"] = hashlib.sha256(weight.read_bytes()).hexdigest()
+        if report["checkpoint_sha256"] != WEIGHT_SHA256:
+            raise ValueError("V12 checkpoint differs from the completed S212 acquisition")
         with zipfile.ZipFile(weight) as archive:
             if archive.testzip() is not None:
                 raise ValueError("Checkpoint archive CRC failed")
@@ -107,7 +110,15 @@ def run(commit: str):
         for name in external:
             if name not in ("model_v12.DotDict", "loss_and_metric_v12.DotDict"):
                 raise ValueError("Unreviewed checkpoint type: " + name)
-            allowed.append(reviewed.load_reviewed(root, name.rsplit(".", 1)[0]).DotDict)
+            filename = name.rsplit(".", 1)[0] + ".py"
+            if hashlib.sha256((root / filename).read_bytes()).hexdigest() != reviewed.PINNED[filename]:
+                raise ValueError("Reviewed metadata dictionary source changed")
+            # These reviewed classes only add attribute access to dict. Their
+            # metadata is not used to configure the model. Loading it as the
+            # built-in container avoids PyTorch's SETITEMS subclass restriction
+            # without enabling arbitrary checkpoint code or altering tensors.
+            allowed.append((dict, name))
+        report["metadata_dotdict_loaded_as_builtin_dict"] = external
         with torch.serialization.safe_globals(allowed):
             checkpoint = torch.load(weight, map_location="cpu", weights_only=True)
         report["checkpoint_keys"] = sorted(checkpoint)
