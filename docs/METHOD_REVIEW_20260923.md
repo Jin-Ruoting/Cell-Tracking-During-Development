@@ -20,6 +20,20 @@
 
 上述顺序按与当前系统的兼容性及验证成本排序，不代表预期分数排名。
 
+2026-09-24 补查官方公开 Notebook 列表后，审阅
+[evgendvorkin 的 PROXY_SCORE Notebook](https://www.kaggle.com/code/evgendvorkin/biohub-0-947-lb-proxy-score-0-9490)
+源码（SHA256 `72ace1da5d9cecd906effb92c796643950194c1ab16eeb61900cf43a8842ad27`）。
+它仍挂载相同三个 pilkwang 数据集，包含双模型谐波融合、Edge/DeepCenter TTA
+和 8 部训练影片上的后处理搜索；正文作者报告公榜 `0.947`。标题中的 proxy
+分数不是新的已验证公榜收益，列表排序也未提供可核实的分数回执，暂不作为
+独立改进分支。第三方源码只保存在仓库外的临时审查目录，没有执行。
+
+同期检查的 [JunhaoLiXD 仓库](https://github.com/JunhaoLiXD/Biohub_Cell_Tracking)
+报告了同类基线复现和速度 EMA 的开发/公榜差异；
+[matt-ceran 仓库](https://github.com/matt-ceran/biohub-cell-tracking)
+则以 DoG、外观分类器和最小费用流为主，并报告分裂头未通过其开发门槛。
+这些是作者记录，未由本项目复核，也没有提供足以替换 E029 的比较证据。
+
 ## 1. x138：把观测补点拆成两个实验
 
 来源：[Anvith Pothula 的 biohub x138](https://www.kaggle.com/code/anvithpothula/biohub-x138)。
