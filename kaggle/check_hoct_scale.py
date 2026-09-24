@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package/run a data-free Kaggle CPU audit of HOCT physical scaling and v1 assets.
+"""Data-free CPU audit of HOCT scaling and v1 assets on Kaggle or Uestc-220.
 
 The old wheel and three upstream scale-fix files are privately bundled by hash.
 No competition input, real-image tracking, label access, solver or score is used.
@@ -21,7 +21,8 @@ import time
 import zipfile
 import zlib
 
-WORK = Path("/kaggle/working/logs/hoct-scale-cpu")
+SERVER_ROOT = Path("/data/zqjinruoting/Kaggle/Cell Tracking During Development")
+WORK = Path(os.environ.get("BIOHUB_HOCT_AUDIT_WORK", "/kaggle/working/logs/hoct-scale-cpu"))
 OLD_SHA = "c6194e81a05d272913dd0945ede2484d9a7d89f8d751c4eb1e30c43031e9093c"
 FIX_SHA = "733d9c70e9e51103156cfc987b216bb73ea6f5138d74403c4d207ba277ad72f6"
 FIX_COMMIT = "8709ee9d3c4d7aae1f022b259d48dc6584237b02"
@@ -161,12 +162,19 @@ def case(bundle, flavour):
             if len(tiles) != 1:
                 raise ValueError("Unexpected number of nonempty tiles")
             origin = np.asarray([part.start for part in tiles[0].slicing[1:]])
-        intended = (original - origin) * (np.asarray(SCALE[1:]) if flavour == "fixed" else 1)
+        relative = original - origin
+        factor = np.asarray(SCALE[1:]) if flavour == "fixed" else np.ones(3)
+        minimum = relative.min(axis=0)
+        # Upstream Affine scales displacements and restores the original minimum.
+        # Report that origin convention explicitly; do not call it global p*scale.
+        intended = (relative - minimum) * factor + minimum
         details["datasets"][kind] = {"positions": positions.tolist(), "expected": intended.tolist(),
                                     "tile_origin_voxels": origin.tolist()}
         save(WORK / (flavour + "_details.json"), details)
         if not np.allclose(positions, intended, rtol=0, atol=1e-6):
             raise ValueError(f"{kind}: dataset positions do not follow the expected units")
+        if not np.allclose(positions - positions[0], (original - original[0]) * factor, rtol=0, atol=1e-6):
+            raise ValueError("Relative displacement scaling failed")
         if (not torch.isfinite(item["node_feats"]).all() or item["edge_targets"] is not None
                 or item["gt_graph"] is not None):
             raise ValueError("Nonfinite features or unexpected ground-truth content")
@@ -179,6 +187,9 @@ def case(bundle, flavour):
             raise ValueError("Physical area scaling is missing or nondeterministic")
         reports[kind] = {"node_positions": positions.tolist(), "feature_shape": list(item["node_feats"].shape),
                          "tile_origin_voxels": origin.tolist(),
+                         "minimum_preserving_affine": True,
+                         "relative_displacements_scaled": flavour == "fixed",
+                         "equals_origin_scaled_absolute_positions": bool(np.allclose(positions, relative * factor, rtol=0, atol=1e-6)),
                          "area_after_transform": transformed["area"].to_list(), "finite": True,
                          "deterministic_scale": True, "gt_fields_absent": True}
     result = {"flavour": flavour, "passed": True, "candidate_pairs_tzyx": pairs,
@@ -189,6 +200,94 @@ def case(bundle, flavour):
     details["passed"] = True
     save(WORK / (flavour + "_details.json"), details)
     print(json.dumps(result), flush=True)
+
+
+def v1_asset():
+    weight = WORK / "general_v1.pt"
+    download("https://github.com/royerlab/hoct/releases/download/weights-v1/general_v1.pt", weight, 25_496_698, V1_SHA, 180)
+    import torch
+    torch.set_num_threads(2)
+    model = torch.jit.load(str(weight), map_location="cpu").eval()
+    if any(p.device.type != "cpu" or not torch.isfinite(p).all() for p in model.parameters()):
+        raise ValueError("Checkpoint parameter contract failed")
+    return {"bytes": weight.stat().st_size, "sha256": V1_SHA,
+            "parameters": sum(p.numel() for p in model.parameters()),
+            "input_projection_shape": list(model.input_proj.weight.shape),
+            "forward_schema": str(model.forward.schema), "loaded_on_cpu": True}
+
+
+def download(url, path, size, expected_sha, seconds):
+    with path.open("xb") as output:
+        subprocess.run(["curl", "-4", "--proto", "=https", "--proto-redir", "=https", "--location", "--fail", "--silent", "--show-error",
+                        "--connect-timeout", "10", "--max-time", str(seconds), "--max-filesize", str(size), url],
+                       stdout=output, check=True, timeout=seconds + 10)
+    if path.stat().st_size != size or sha(path.read_bytes()) != expected_sha:
+        raise ValueError("Official asset/source size or SHA mismatch: " + path.name)
+
+
+def cases(bundle, report):
+    failures = []
+    for flavour in ("old", "fixed"):
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve()), "case", "--bundle", str(bundle), "--flavour", flavour], timeout=120)
+        if result.returncode:
+            failures.append(flavour)
+            report[flavour] = {"passed": False, "returncode": result.returncode}
+        else:
+            report[flavour] = json.loads((WORK / (flavour + ".json")).read_text())
+    # Asset availability is independent of the geometry diagnostic.
+    report["v1_asset"] = v1_asset()
+    if failures:
+        raise ValueError("Synthetic cases failed: " + ", ".join(failures))
+
+
+def run_server(run_name):
+    global WORK
+    root = Path(__file__).resolve().parents[1]
+    if root != SERVER_ROOT or Path(sys.prefix).name != "Kaggle" or not re.fullmatch(r"[a-zA-Z0-9_-]+", run_name):
+        raise RuntimeError("Server audit requires the designated repository and conda Kaggle")
+    if subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True).strip():
+        raise ValueError("Server tracked tree must be clean")
+    revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+    if revision != subprocess.check_output(["git", "rev-parse", "@{upstream}"], cwd=root, text=True).strip():
+        raise ValueError("Server must pull --ff-only before running")
+    WORK = root / "logs" / run_name
+    WORK.mkdir(parents=True, exist_ok=False)
+    os.environ["BIOHUB_HOCT_AUDIT_WORK"] = str(WORK)
+    runtime = root / "logs/s193_hoct_sized_runtime_20260923v1/runtime"
+    reference_runtime = root / "Dataset/runtime-py311"
+    if not runtime.is_dir() or not reference_runtime.is_dir():
+        raise FileNotFoundError("Previously verified isolated server dependencies are missing")
+    os.environ["PYTHONPATH"] = os.pathsep.join([str(runtime), str(reference_runtime)])
+    os.environ.update(CUDA_VISIBLE_DEVICES="", OMP_NUM_THREADS="2", MKL_NUM_THREADS="2", OPENBLAS_NUM_THREADS="2", POLARS_MAX_THREADS="2", POLARS_PREFER_PKG="32")
+    started = time.monotonic()
+    report = {"passed": False, "git_commit": revision, "compute": "Uestc-220 conda Kaggle CPU",
+              "real_image_inference": False, "ground_truth_accessed": False, "model_forward_executed": False,
+              "solver_run": False, "quality_score": None, "base_environment_modified": False,
+              "upstream_fix_commit": FIX_COMMIT}
+    try:
+        wheel = WORK / "hoct-0.2.0-py3-none-any.whl"
+        archive = WORK / "hoct-8709ee9-source.tar.gz"
+        download("https://files.pythonhosted.org/packages/bf/03/5f42ba29b58d4fdc3d1f3bdecbb303af518bab3d882b2a684e60aa878c86/hoct-0.2.0-py3-none-any.whl", wheel, 51_052, OLD_SHA, 60)
+        download("https://codeload.github.com/royerlab/hoct/tar.gz/" + FIX_COMMIT, archive, 68_028, FIX_SHA, 60)
+        bundle = WORK / "reviewed_sources"
+        files = sources(wheel, archive)
+        for name, source in files.items():
+            path = (bundle / name).resolve()
+            if bundle not in path.parents:
+                raise ValueError("Invalid dependency path")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(source)
+        report["upstream_files"] = {name: sha(source.encode()) for name, source in files.items()}
+        cases(bundle, report)
+        report["passed"] = True
+    except Exception as exc:
+        report["error"] = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        report["elapsed_seconds"] = time.monotonic() - started
+        save(WORK / "runtime_receipt.json", report)
+        (WORK / "run_summary.md").write_text("# HOCT server CPU scale/asset audit\n\n```json\n" + json.dumps(report, indent=2) + "\n```\n\nNo tracking-quality claim.\n")
+        print(json.dumps(report), flush=True)
 
 
 def run(bundle):
@@ -223,26 +322,7 @@ def run(bundle):
                         "--find-links", str(wheels), "spatial-graph==0.1.1", "pooch==1.9.0", "gurobipy==12.0.3",
                         "witty==0.3.2", "CT3==3.4.0.post5"], check=True, timeout=90)
         report["download_receipt"] = json.loads((WORK / "download_receipt.json").read_text())
-        for flavour in ("old", "fixed"):
-            subprocess.run([sys.executable, str(bundle / "check_hoct_scale.py"), "case", "--bundle", str(bundle), "--flavour", flavour], check=True, timeout=120)
-            report[flavour] = json.loads((WORK / (flavour + ".json")).read_text())
-        weight = WORK / "general_v1.pt"
-        with weight.open("xb") as output:
-            subprocess.run(["curl", "-4", "--proto", "=https", "--proto-redir", "=https", "--location", "--fail", "--silent", "--show-error",
-                            "--connect-timeout", "10", "--max-time", "180", "--max-filesize", "25496698",
-                            "https://github.com/royerlab/hoct/releases/download/weights-v1/general_v1.pt"],
-                           stdout=output, check=True, timeout=190)
-        if weight.stat().st_size != 25_496_698 or sha(weight.read_bytes()) != V1_SHA:
-            raise ValueError("Complete official v1 checkpoint hash/size mismatch")
-        import torch
-        torch.set_num_threads(2)
-        model = torch.jit.load(str(weight), map_location="cpu").eval()
-        if any(p.device.type != "cpu" or not torch.isfinite(p).all() for p in model.parameters()):
-            raise ValueError("Checkpoint parameter contract failed")
-        report["v1_asset"] = {"bytes": weight.stat().st_size, "sha256": V1_SHA,
-                              "parameters": sum(p.numel() for p in model.parameters()),
-                              "input_projection_shape": list(model.input_proj.weight.shape),
-                              "forward_schema": str(model.forward.schema), "loaded_on_cpu": True}
+        cases(bundle, report)
         report["passed"] = True
     except Exception as exc:
         report["error"] = f"{type(exc).__name__}: {exc}"
@@ -261,6 +341,8 @@ def main():
     local.add_argument("--owner", required=True)
     for key in ("old-wheel", "fixed-archive", "output-dir"):
         local.add_argument("--" + key, type=Path, required=True)
+    server = sub.add_parser("server")
+    server.add_argument("--run-name", required=True)
     for name in ("run", "case"):
         runtime = sub.add_parser(name)
         runtime.add_argument("--bundle", type=Path, required=True)
@@ -269,9 +351,13 @@ def main():
     args = parser.parse_args()
     if args.action == "package":
         package(args)
+    elif args.action == "server":
+        run_server(args.run_name)
     else:
-        if not Path("/kaggle/input").is_dir() or not Path("/kaggle/working").is_dir():
-            raise RuntimeError("This audit executes only on Kaggle CPU")
+        kaggle = Path("/kaggle/input").is_dir() and Path("/kaggle/working").is_dir()
+        server_case = args.action == "case" and Path(__file__).resolve().parents[1] == SERVER_ROOT and SERVER_ROOT / "logs" in WORK.parents
+        if not kaggle and not server_case:
+            raise RuntimeError("This audit executes only on Kaggle CPU or the designated server")
         if args.action == "run":
             run(args.bundle.resolve())
         else:
