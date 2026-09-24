@@ -145,7 +145,8 @@ def run_logged(label, command):
 run_logged("semantic-tests", [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_point_gap_bridge.py", "-v"])
 runner = [sys.executable, str(bundle / "kaggle/run_kaggle_development.py"), "--bundle", str(bundle), "--phase"]
 run_logged("control", runner + ["control"])
-if json.loads((bundle / "bundle_manifest.json").read_text()).get("diagnostic_only"):
+config = json.loads((bundle / "bundle_manifest.json").read_text())
+if config.get("diagnostic_only") or config.get("control_only"):
     run_logged("diagnose-control", runner + ["diagnose-control"])
 else:
     if not json.loads((work / "control_parity.json").read_text())["byte_parity"]:
@@ -179,6 +180,8 @@ def build(args):
     files.update(scoring_files(args.scorer_archive))
     files["reference.ipynb"] = args.reference_notebook.read_text()
     completed_control = None
+    if args.control_only and (args.mode != "smoke" or args.completed_control_dir):
+        raise ValueError("Control-only repeatability checks require fresh inference on the frozen smoke pair")
     if args.diagnostic_only and not args.completed_control_dir:
         raise ValueError("CPU diagnostic requires completed control outputs")
     if args.completed_control_dir:
@@ -186,10 +189,22 @@ def build(args):
             raise ValueError("Completed-control recovery is limited to the frozen smoke pair")
         recovered, completed_control = completed_smoke_files(args.completed_control_dir)
         files.update(recovered)
+    control_replay_of = None
+    if args.control_replay_of:
+        import run_kaggle_development as cloud
+        prior = json.loads(args.control_replay_of.read_text())
+        if (not args.control_only or args.completed_control_dir
+                or prior["observed"]["n"] != 2
+                or prior["control_parity"]["predictor_source_audit"]["canonical_sha256"] != cloud.PREDICTOR_SHA256):
+            raise ValueError("Control replay requires a fresh smoke run and a verified prior control receipt")
+        control_replay_of = {"csv_sha256": prior["control_parity"]["actual_csv_sha256"],
+                             "score": prior["observed"]["score"],
+                             "receipt_sha256": reference.stability.file_sha256(args.control_replay_of)}
     manifest = {"git_commit": revision, "mode": args.mode, "protocol_sha256": protocol,
                 "reference_sha256": reference.REFERENCE_SHA256, "scorer_archive_sha256": SCORER_ARCHIVE_SHA256,
                 "completed_control": completed_control,
                 "diagnostic_only": args.diagnostic_only,
+                "control_only": args.control_only, "control_replay_of": control_replay_of,
                 "files": {name: sha256(text.encode()) for name, text in files.items()}}
     files["bundle_manifest.json"] = json.dumps(manifest, indent=2) + "\n"
     metadata = {"id": f"{args.owner}/biohub-e038-development-frozen-{args.mode}",
@@ -237,8 +252,13 @@ def main():
     parser.add_argument("--smoke-receipt", type=Path)
     parser.add_argument("--completed-control-dir", type=Path,
                         help="Downloaded completed smoke outputs, with original manifest, raw CSV and predictor")
-    parser.add_argument("--diagnostic-only", action="store_true",
-                        help="CPU-only official scoring of recovered control; never run candidate inference")
+    purpose = parser.add_mutually_exclusive_group()
+    purpose.add_argument("--diagnostic-only", action="store_true",
+                         help="CPU-only official scoring of recovered control; never run candidate inference")
+    purpose.add_argument("--control-only", action="store_true",
+                         help="Fresh GPU control and CPU scoring only; never run candidate inference")
+    parser.add_argument("--control-replay-of", type=Path,
+                        help="Prior cloud control_diagnostic.json for a fixed repeatability comparison")
     parser.add_argument("--output-dir", type=Path, required=True)
     build(parser.parse_args())
 

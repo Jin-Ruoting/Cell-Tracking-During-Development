@@ -10,6 +10,7 @@ import argparse
 import ast
 from collections import Counter
 import hashlib
+import importlib.metadata
 import json
 import math
 import os
@@ -166,6 +167,8 @@ def control(bundle: Path, manifest: dict):
                "frozen_overrides": reference.FROZEN_OVERRIDES, "runtime_parameter_search": False,
                "selection_reads_ground_truth": True, "predictions_read_ground_truth": False,
                "evidence": "development only; checkpoint training overlap is unresolved"}
+    receipt["runtime_versions"] = {"python": sys.version, **{
+        name: importlib.metadata.version(name) for name in ("torch", "numpy", "scipy", "pandas", "zarr", "tracksdata", "geff", "polars")}}
     save(WORK / "run_manifest.json", receipt)
     if recovered:
         if manifest["mode"] != "smoke" or recovered["datasets"] != names:
@@ -282,9 +285,16 @@ def score(bundle: Path, manifest: dict, diagnose_only=False):
                       "control_parity": json.loads((WORK / "control_parity.json").read_text()),
                       "promotion_allowed": False, "candidate_run": False,
                       "score_delta_from_historical_control": result["score"] - EXPECTED[manifest["mode"]]["score"]}
+        if manifest.get("control_replay_of"):
+            prior = manifest["control_replay_of"]
+            diagnostic["cloud_repeatability"] = {
+                "reference": prior,
+                "csv_bytes_reproduced": diagnostic["control_parity"]["actual_csv_sha256"] == prior["csv_sha256"],
+                "score_reproduced": math.isclose(result["score"], prior["score"], rel_tol=0, abs_tol=1e-9)}
         save(WORK / "control_diagnostic.json", diagnostic)
+        inference = "Completed control reused." if manifest.get("completed_control") else "Fresh control inference completed."
         (WORK / "run_summary.md").write_text("# E029 control portability diagnostic\n\n" +
-            "Completed control reused. No E038 candidate or promotion.\n\n```json\n" +
+            inference + " No E038 candidate or promotion.\n\n```json\n" +
             json.dumps(diagnostic, indent=2) + "\n```\n")
         print(json.dumps(diagnostic, indent=2), flush=True)
         return

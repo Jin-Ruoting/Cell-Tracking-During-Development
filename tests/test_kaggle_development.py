@@ -16,6 +16,16 @@ import run_kaggle_development as cloud
 
 
 class KaggleDevelopmentTests(unittest.TestCase):
+    def test_control_diagnostics_never_launch_candidate_phases(self):
+        tree = ast.parse(build.bootstrap_source({}))
+        branch = next(n for n in tree.body if isinstance(n, ast.If) and isinstance(n.test, ast.BoolOp))
+        code = compile(ast.Module(body=[branch], type_ignores=[]), "dispatch-only", "exec")
+        for config in ({"control_only": True}, {"diagnostic_only": True}):
+            calls = []
+            exec(code, {"config": config, "runner": ["runner"],
+                        "run_logged": lambda label, command: calls.append((label, command))})
+            self.assertEqual(calls, [("diagnose-control", ["runner", "diagnose-control"])])
+
     def test_generated_package_preserves_unicode_and_csv_line_endings(self):
         files = {"code.py": "# 中文\npass\n", "output.csv": "a,b\r\n1,2\r\n" * 1000}
         tree = ast.parse(build.bootstrap_source(files))

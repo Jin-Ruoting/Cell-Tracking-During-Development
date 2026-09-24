@@ -52,6 +52,19 @@ Add `--diagnostic-only` to score this completed control on CPU without running
 v5 or E038. This route prepares only scoring dependencies and avoids repeated
 model copying. A completed diagnostic is not a passed migration check.
 
+`--control-only --control-replay-of PATH_TO_CONTROL_DIAGNOSTIC_JSON` runs one
+fresh GPU control on the same two movies and scores it, without running E038.
+It records whether the previous cloud CSV and score reproduce and retains
+package versions. This checks within-platform repeatability separately from
+historical server parity. It does not enable full candidate packaging.
+
+The first cloud control diagnostic completed on 2026-09-24: topology passed,
+but its 104,284 rows differ from the historical server control's 104,308.
+Official scores were 0.9638391788805566 and 0.9638193643220809, respectively.
+The predictor source matches after only the two permitted log-path changes.
+This small difference is a portability observation, not an E038 improvement;
+its cause is not established. No E038 candidate was run or promoted.
+
 External inputs:
 
 - [Geometric Fusion](https://www.kaggle.com/code/amanatar/biohub-geometric-fusion),
