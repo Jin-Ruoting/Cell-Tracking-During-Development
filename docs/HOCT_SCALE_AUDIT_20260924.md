@@ -100,7 +100,8 @@ S223 在私有 Kaggle CPU 第 3 版中完成此前未完成的资产核验，源
 
 `kaggle/fetch_hoct_v1_asset.py` 使服务器直接取得该私有输出：本地只查询
 已有认证下的输出元数据，经 SSH 标准输入传递临时下载地址；不传账号凭据，
-不在本地保存或运行权重。服务器仅接受指定 Google Storage HTTPS 地址，
+不在本地保存或运行权重。服务器仅接受实际官方输出域名
+`www.kaggleusercontent.com` 及其 Google Storage HTTPS 目标，
 限定大小、时限及官方 SHA256，输出写入新 `logs` 目录，再核验 CPU 加载。
 临时地址不写入日志或仓库。该资产检查不改动正在运行的 E041 v0 协议。
 

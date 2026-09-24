@@ -29,9 +29,9 @@ ARTIFACT = "logs/hoct-scale-cpu/general_v1.pt"
 
 def validate_url(url):
     parsed = urlsplit(url)
-    if (parsed.scheme != "https" or parsed.hostname != "storage.googleapis.com"
+    if (parsed.scheme != "https" or parsed.hostname not in {"www.kaggleusercontent.com", "storage.googleapis.com"}
             or parsed.username or parsed.password or parsed.port not in (None, 443)):
-        raise ValueError("Expected a signed Kaggle output on Google Storage")
+        raise ValueError("Expected an official Kaggle output download host")
 
 
 def relay(args):
