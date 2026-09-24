@@ -78,6 +78,43 @@ subprocess.run([sys.executable, str(root / "check_v12_checkpoint.py"), "run", "-
                       "enable_gpu": False, "metadata_only": metadata_only}, indent=2))
 
 
+def load_checkpoint(root: Path, report: dict):
+    """Load only the pinned, reviewed checkpoint using restricted deserialization."""
+    weight = root / "00000008.pth"
+    if weight.stat().st_size != 43_076_221:
+        raise ValueError("V12 checkpoint is not the complete publicly listed file")
+    report["checkpoint_bytes"] = weight.stat().st_size
+    report["checkpoint_sha256"] = hashlib.sha256(weight.read_bytes()).hexdigest()
+    if report["checkpoint_sha256"] != WEIGHT_SHA256:
+        raise ValueError("V12 checkpoint differs from the completed S212 acquisition")
+    with zipfile.ZipFile(weight) as archive:
+        if archive.testzip() is not None:
+            raise ValueError("Checkpoint archive CRC failed")
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    import torch
+    torch.set_num_threads(4)
+    torch.set_num_interop_threads(1)
+    report["torch_version"] = str(torch.__version__)
+    external = torch.serialization.get_unsafe_globals_in_checkpoint(weight)
+    report["checkpoint_extra_globals"] = external
+    allowed = []
+    for name in external:
+        if name not in ("model_v12.DotDict", "loss_and_metric_v12.DotDict"):
+            raise ValueError("Unreviewed checkpoint type: " + name)
+        filename = name.rsplit(".", 1)[0] + ".py"
+        if hashlib.sha256((root / filename).read_bytes()).hexdigest() != reviewed.PINNED[filename]:
+            raise ValueError("Reviewed metadata dictionary source changed")
+        # These reviewed classes only add attribute access to dict. Their
+        # metadata is not used to configure the model. Loading it as the
+        # built-in container avoids PyTorch's SETITEMS subclass restriction
+        # without enabling arbitrary checkpoint code or altering tensors.
+        allowed.append((dict, name))
+    report["metadata_dotdict_loaded_as_builtin_dict"] = external
+    with torch.serialization.safe_globals(allowed):
+        checkpoint = torch.load(weight, map_location="cpu", weights_only=True)
+    return checkpoint
+
+
 def run(commit: str, *, metadata_only: bool = False):
     if not Path("/kaggle/input").is_dir() or not Path("/kaggle/working").is_dir():
         raise RuntimeError("This runtime audit may execute only on Kaggle compute")
@@ -96,38 +133,8 @@ def run(commit: str, *, metadata_only: bool = False):
         if len(roots) != 1:
             raise ValueError("Expected one mounted author dataset")
         root = roots.pop()
-        weight = root / "00000008.pth"
-        if weight.stat().st_size != 43_076_221:
-            raise ValueError("V12 checkpoint is not the complete publicly listed file")
-        report["checkpoint_bytes"] = weight.stat().st_size
-        report["checkpoint_sha256"] = hashlib.sha256(weight.read_bytes()).hexdigest()
-        if report["checkpoint_sha256"] != WEIGHT_SHA256:
-            raise ValueError("V12 checkpoint differs from the completed S212 acquisition")
-        with zipfile.ZipFile(weight) as archive:
-            if archive.testzip() is not None:
-                raise ValueError("Checkpoint archive CRC failed")
-        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        checkpoint = load_checkpoint(root, report)
         import torch
-        torch.set_num_threads(4)
-        torch.set_num_interop_threads(1)
-        report["torch_version"] = str(torch.__version__)
-        external = torch.serialization.get_unsafe_globals_in_checkpoint(weight)
-        report["checkpoint_extra_globals"] = external
-        allowed = []
-        for name in external:
-            if name not in ("model_v12.DotDict", "loss_and_metric_v12.DotDict"):
-                raise ValueError("Unreviewed checkpoint type: " + name)
-            filename = name.rsplit(".", 1)[0] + ".py"
-            if hashlib.sha256((root / filename).read_bytes()).hexdigest() != reviewed.PINNED[filename]:
-                raise ValueError("Reviewed metadata dictionary source changed")
-            # These reviewed classes only add attribute access to dict. Their
-            # metadata is not used to configure the model. Loading it as the
-            # built-in container avoids PyTorch's SETITEMS subclass restriction
-            # without enabling arbitrary checkpoint code or altering tensors.
-            allowed.append((dict, name))
-        report["metadata_dotdict_loaded_as_builtin_dict"] = external
-        with torch.serialization.safe_globals(allowed):
-            checkpoint = torch.load(weight, map_location="cpu", weights_only=True)
         report["checkpoint_keys"] = sorted(checkpoint)
         # Export only plain JSON configuration/epoch metadata, never state tensors.
         # Fail on unsupported values or nonfinite numbers rather than stringify them.
