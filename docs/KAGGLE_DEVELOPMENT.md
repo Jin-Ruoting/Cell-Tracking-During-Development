@@ -100,3 +100,24 @@ successful downloaded `development_receipt.json` from the same frozen
 protocol. Check remaining GPU quota and measured smoke timing before launching
 the full run. Any promoted method still requires the existing author-selection
 exclusion review, actual test-output audit and separately verified public score.
+
+## Separate E039 paired cloud experiment
+
+[E039's preregistered protocol](E039_KAGGLE_PAIRED_PROTOCOL.md) evaluates the
+unchanged bridge policy against one immutable control generated in that same
+Kaggle run. It preserves the failed E038 server-parity result. E039 packaging
+requires the completed independent cloud repeat, with identical CSV bytes and
+official score. It also pins package versions and checks both anchor graphs in
+the full run. All E038 source/model/corpus/algorithm and promotion gates remain
+unchanged; full-control score comparisons use the contemporaneous paired arm.
+
+After committing/pushing, use `kaggle/build_kaggle_paired.py` with the same
+`--owner`, `--reference-notebook`, `--scorer-archive`, `--mode` and
+`--output-dir` arguments, plus `--repeat-dir` pointing to the downloaded S210
+directory containing `control_diagnostic.json`, `run_manifest.json` and
+`control/control.csv`. Full mode additionally requires `--smoke-receipt` from
+E039's own completed `paired_development_receipt.json`, with matching sources
+and control evidence. Smoke gain is not a selection criterion.
+
+E039 uses separate private `biohub-e039-kaggle-paired-smoke/full` Notebooks;
+runtime receipts go to `/kaggle/working/logs/e039-development`.

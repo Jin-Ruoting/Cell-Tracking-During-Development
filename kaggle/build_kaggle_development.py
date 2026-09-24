@@ -108,9 +108,22 @@ def completed_smoke_files(directory: Path) -> tuple[dict[str, str], dict]:
     return files, receipt
 
 
-def bootstrap_source(files: dict[str, str]) -> str:
+def bootstrap_source(files: dict[str, str], *, runner_name="run_kaggle_development.py",
+                     work_name="e038-development", phases=None) -> str:
     compressed = lzma.compress(json.dumps(files, ensure_ascii=False, sort_keys=True).encode(), preset=6)
     encoded = base64.b85encode(compressed).decode()
+    dispatch = '''run_logged("control", runner + ["control"])
+config = json.loads((bundle / "bundle_manifest.json").read_text())
+if config.get("diagnostic_only") or config.get("control_only"):
+    run_logged("diagnose-control", runner + ["diagnose-control"])
+else:
+    if not json.loads((work / "control_parity.json").read_text())["byte_parity"]:
+        run_logged("diagnose-control", runner + ["diagnose-control"])
+        raise RuntimeError("E029 migration parity failed; no candidate or parameter adjustment")
+    for phase in ("peaks", "bridges", "score"):
+        run_logged(phase, runner + [phase])'''
+    if phases is not None:
+        dispatch = f'for phase in {tuple(phases)!r}:\n    run_logged(phase, runner + [phase])'
     return f'''import base64, hashlib, json, lzma, os, subprocess, sys
 from pathlib import Path
 
@@ -124,7 +137,7 @@ for name, text in json.loads(lzma.decompress(payload)).items():
         raise ValueError("Invalid bundled path")
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text)
-work = Path("/kaggle/working/logs/e038-development")
+work = Path({('/kaggle/working/logs/' + work_name)!r})
 work.mkdir(parents=True, exist_ok=False)
 env = {{**os.environ, "PYTHONUNBUFFERED": "1", "OMP_NUM_THREADS": "4", "MKL_NUM_THREADS": "4",
        "OPENBLAS_NUM_THREADS": "4", "POLARS_MAX_THREADS": "4"}}
@@ -143,17 +156,8 @@ def run_logged(label, command):
             raise RuntimeError(label + " failed; inspect its retained log")
 
 run_logged("semantic-tests", [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_point_gap_bridge.py", "-v"])
-runner = [sys.executable, str(bundle / "kaggle/run_kaggle_development.py"), "--bundle", str(bundle), "--phase"]
-run_logged("control", runner + ["control"])
-config = json.loads((bundle / "bundle_manifest.json").read_text())
-if config.get("diagnostic_only") or config.get("control_only"):
-    run_logged("diagnose-control", runner + ["diagnose-control"])
-else:
-    if not json.loads((work / "control_parity.json").read_text())["byte_parity"]:
-        run_logged("diagnose-control", runner + ["diagnose-control"])
-        raise RuntimeError("E029 migration parity failed; no candidate or parameter adjustment")
-    for phase in ("peaks", "bridges", "score"):
-        run_logged(phase, runner + [phase])
+runner = [sys.executable, str(bundle / {('kaggle/' + runner_name)!r}), "--bundle", str(bundle), "--phase"]
+{dispatch}
 print((work / "run_summary.md").read_text())
 '''
 

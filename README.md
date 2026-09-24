@@ -291,6 +291,10 @@ The [Kaggle development adapter](docs/KAGGLE_DEVELOPMENT.md) provides private
 compute when the primary server is unavailable, while retaining the frozen
 corpus, historical control replay and full advancement gates. The adapter's
 availability is not experimental or public-score evidence.
+The cloud control has passed topology checks but differs from the historical
+server control. [E039](docs/E039_KAGGLE_PAIRED_PROTOCOL.md) separately prepares
+a same-run paired comparison, conditional on exact within-cloud repeatability;
+it does not reclassify the failed E038 migration check as passed.
 
 ## Reproducibility
 
