@@ -36,6 +36,19 @@ Runtime packages are installed from the mounted support pack, with Notebook
 Internet access disabled. Separate processes isolate reference inference,
 v5 peak capture, bridge construction and official scoring.
 
+The submitted E029 v1 predictor is pinned after normalizing exactly its two
+diagnostic log-directory literals to `/kaggle/working`. No algorithm expression
+is normalized or ignored. This reproduces the historical server checksum when
+those same literals are set to its old log directory. The guard runs before
+new inference, and both raw and canonical hashes are retained.
+
+If control inference and postprocessing complete but a migration audit fails,
+`--completed-control-dir` can package the downloaded smoke control CSV,
+predictor and original run/cohort receipts. This limited recovery verifies
+provenance, predictor identity and file hashes, then repeats boundary/topology,
+historical CSV and official-score checks on Kaggle. It does not rerun E029
+inference or relax any E038 advancement gate. Reuse is explicit in the receipt.
+
 External inputs:
 
 - [Geometric Fusion](https://www.kaggle.com/code/amanatar/biohub-geometric-fusion),

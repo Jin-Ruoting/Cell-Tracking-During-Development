@@ -15,6 +15,31 @@ import run_kaggle_development as cloud
 
 
 class KaggleDevelopmentTests(unittest.TestCase):
+    def test_predictor_guard_allows_only_the_two_log_path_relocations(self):
+        canonical = 'a = Path("/kaggle/working")\nb = Path("/kaggle/working")\nthreshold = 0.965\n'
+        digest = hashlib.sha256(canonical.encode()).hexdigest()
+        run_dir = Path("/kaggle/working/logs/other-run")
+        with tempfile.TemporaryDirectory() as folder, patch.object(cloud, "PREDICTOR_SHA256", digest):
+            path = Path(folder) / "predictor.py"
+            relocated = canonical.replace('/kaggle/working', str(run_dir))
+            path.write_text(relocated)
+            self.assertTrue(cloud.verify_predictor(path, run_dir)["source_matches_submitted_e029"])
+            path.write_text(relocated.replace("0.965", "0.955"))
+            with self.assertRaisesRegex(ValueError, "changed beyond"):
+                cloud.verify_predictor(path, run_dir)
+            path.write_text(relocated + f'c = Path("{run_dir}")\n')
+            with self.assertRaisesRegex(ValueError, "exactly two"):
+                cloud.verify_predictor(path, run_dir)
+
+    def test_source_guard_runs_before_movie_selection_or_inference(self):
+        order = []
+        namespace = {"_verify_cloud_predictor": lambda: order.append("guard"),
+                     "select": lambda: order.append("select"), "infer": lambda: order.append("infer")}
+        exec(cloud.guard_before_inference("test_stems = select()\ninfer()"), namespace)
+        self.assertEqual(order, ["guard", "select", "infer"])
+        with self.assertRaisesRegex(ValueError, "anchor"):
+            cloud.guard_before_inference("infer()")
+
     def test_kaggle_working_paths_are_relocated_only_once(self):
         sources = ["pass", "pass", 'COMP_DIR = Path("old")\nWORKING_DIR = Path("/kaggle/working")',
                    'ARTIFACTS = Path("old")', '{"PYTHONPATH": "src"}\n{"PYTHONPATH": "src"}',

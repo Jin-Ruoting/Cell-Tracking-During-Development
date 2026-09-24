@@ -82,6 +82,32 @@ def require_smoke_receipt(path: Path | None, protocol: str):
         raise ValueError("Smoke receipt does not validate the current frozen sources")
 
 
+def completed_smoke_files(directory: Path) -> tuple[dict[str, str], dict]:
+    """Retain a completed control after a migration-audit failure, without GPU replay."""
+    import frozen_development_corpus as corpus
+    import run_kaggle_development as cloud
+
+    selection = json.loads((directory / "cohort.json").read_text())
+    names = corpus.validate_manifest(selection, "smoke")
+    original = json.loads((directory / "run_manifest.json").read_text())
+    if (original.get("mode") != "smoke" or original.get("datasets") != names
+            or original.get("reference_sha256") != reference.REFERENCE_SHA256
+            or original.get("frozen_overrides") != reference.FROZEN_OVERRIDES
+            or original.get("predictions_read_ground_truth") is not False):
+        raise ValueError("Completed smoke provenance does not match the frozen reference")
+    predictor_path = directory / "control/tracking_repo/scripts/predict_unet_transformer.py"
+    predictor_audit = cloud.verify_predictor(predictor_path, cloud.WORK / "control")
+    csv_path = directory / "control/submission.csv"
+    files = {"completed-control/raw_submission.csv": csv_path.read_text(),
+             "completed-control/predict_unet_transformer.py": predictor_path.read_text(),
+             "completed-control/source_run_manifest.json": json.dumps(original, indent=2) + "\n"}
+    receipt = {"source_git_commit": original["git_commit"], "source_csv_sha256": sha256(csv_path.read_bytes()),
+               "packaged_csv_sha256": sha256(files["completed-control/raw_submission.csv"].encode()),
+               "predictor_source_audit": predictor_audit, "datasets": names,
+               "purpose": "resume export of completed control; exact historical CSV parity is still required"}
+    return files, receipt
+
+
 def bootstrap_source(files: dict[str, str]) -> str:
     compressed = zlib.compress(json.dumps(files, ensure_ascii=False, sort_keys=True).encode(), level=9)
     encoded = base64.b64encode(compressed).decode()
@@ -150,8 +176,15 @@ def build(args):
         require_smoke_receipt(args.smoke_receipt, protocol)
     files.update(scoring_files(args.scorer_archive))
     files["reference.ipynb"] = args.reference_notebook.read_text()
+    completed_control = None
+    if args.completed_control_dir:
+        if args.mode != "smoke":
+            raise ValueError("Completed-control recovery is limited to the frozen smoke pair")
+        recovered, completed_control = completed_smoke_files(args.completed_control_dir)
+        files.update(recovered)
     manifest = {"git_commit": revision, "mode": args.mode, "protocol_sha256": protocol,
                 "reference_sha256": reference.REFERENCE_SHA256, "scorer_archive_sha256": SCORER_ARCHIVE_SHA256,
+                "completed_control": completed_control,
                 "files": {name: sha256(text.encode()) for name, text in files.items()}}
     files["bundle_manifest.json"] = json.dumps(manifest, indent=2) + "\n"
     metadata = {"id": f"{args.owner}/biohub-e038-development-frozen-{args.mode}",
@@ -193,6 +226,8 @@ def main():
     parser.add_argument("--scorer-archive", type=Path, required=True)
     parser.add_argument("--mode", choices=("smoke", "full"), default="smoke")
     parser.add_argument("--smoke-receipt", type=Path)
+    parser.add_argument("--completed-control-dir", type=Path,
+                        help="Downloaded completed smoke outputs, with original manifest, raw CSV and predictor")
     parser.add_argument("--output-dir", type=Path, required=True)
     build(parser.parse_args())
 

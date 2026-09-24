@@ -7,7 +7,9 @@ prediction, parameter search, or competition submission is provided here.
 from __future__ import annotations
 
 import argparse
+import ast
 from collections import Counter
+import hashlib
 import json
 import math
 import os
@@ -26,7 +28,10 @@ EXPECTED = {
     "full": {"csv_sha256": "1d4fd28c02cb54d2279a120794b26e21fa0741d743bf62781d8ed17d5a26e2ce",
              "score": 0.9090442379185286},
 }
-PREDICTOR_SHA256 = "e5851002ad72730de0169d2c7a67ec21fd458d29cae900ab01ffcc935b8066b8"
+# Exact predictor saved by the submitted E029 Kaggle v1. Substituting its two
+# log-directory literals with the historical server directory reproduces the
+# server's e5851002... checksum. Only these log destinations may be relocated.
+PREDICTOR_SHA256 = "ddca518b0e838b2123f30cfcb31819fb159b4e68fc20ef6b3a42003cc2d528ed"
 
 
 def save(path: Path, value):
@@ -72,6 +77,35 @@ def relocated_sources(sources: list[str], input_root: Path, run_dir: Path, suppo
     return sources
 
 
+def verify_predictor(path: Path, run_dir: Path) -> dict:
+    source = path.read_text()
+    anchor = f'Path("{run_dir}")'
+    if source.count(anchor) != 2 or source.count(str(run_dir)) != 2:
+        raise ValueError("Expected exactly two relocated diagnostic log paths")
+    normalized = source.replace(anchor, 'Path("/kaggle/working")')
+    digest = hashlib.sha256(normalized.encode()).hexdigest()
+    if digest != PREDICTOR_SHA256:
+        raise ValueError("E029 predictor changed beyond its two diagnostic log paths")
+    return {"raw_sha256": reference.stability.file_sha256(path), "canonical_sha256": digest,
+            "log_path_relocations": 2, "source_matches_submitted_e029": True}
+
+
+def guard_before_inference(source: str) -> str:
+    tree = ast.parse(source)
+    found = 0
+    body = []
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "test_stems"):
+            body.extend(ast.parse("_verify_cloud_predictor()").body)
+            found += 1
+        body.append(node)
+    if found != 1:
+        raise ValueError("Pre-inference predictor audit anchor changed")
+    tree.body = body
+    return ast.unparse(ast.fix_missing_locations(tree))
+
+
 def control(bundle: Path, manifest: dict):
     sources = reference.read_reference(bundle / "reference.ipynb")
     data = mounted("", "biohub-cell-tracking-during-development", competition=True)
@@ -99,6 +133,10 @@ def control(bundle: Path, manifest: dict):
     # Kaggle needs the reference's offline dependency installation, unlike the
     # already-provisioned server. No inference or policy statement is replaced.
     sources = relocated_sources(sources, input_root, run_dir, support)
+    sources[4] = guard_before_inference(sources[4])
+    namespace["_verify_cloud_predictor"] = lambda: save(
+        run_dir / "predictor_source_audit.json",
+        verify_predictor(run_dir / "tracking_repo/scripts/predict_unet_transformer.py", run_dir))
     for i in (2, 3):
         exec(compile(sources[i], f"reference:cell-{i}", "exec"), namespace)
     selection = corpus.reconstruct(data / "train", manifest["mode"])
@@ -116,13 +154,25 @@ def control(bundle: Path, manifest: dict):
                "selection_reads_ground_truth": True, "predictions_read_ground_truth": False,
                "evidence": "development only; checkpoint training overlap is unresolved"}
     save(WORK / "run_manifest.json", receipt)
-    for i in (4, 5):
-        print(f"EXECUTING FROZEN REFERENCE CELL {i}", flush=True)
-        exec(compile(sources[i], f"reference:cell-{i}", "exec"), namespace)
-    predictor = reference.stability.file_sha256(run_dir / "tracking_repo/scripts/predict_unet_transformer.py")
-    if predictor != PREDICTOR_SHA256:
-        raise ValueError("Patched E029 predictor differs from the server's frozen source")
-    (run_dir / "submission.csv").rename(run_dir / "raw_submission.csv")
+    recovered = manifest.get("completed_control")
+    if recovered:
+        if manifest["mode"] != "smoke" or recovered["datasets"] != names:
+            raise ValueError("Completed control is not the frozen smoke pair")
+        path = bundle / "completed-control/raw_submission.csv"
+        if reference.stability.file_sha256(path) != recovered["packaged_csv_sha256"]:
+            raise ValueError("Completed control CSV bytes changed")
+        predictor = verify_predictor(bundle / "completed-control/predict_unet_transformer.py", run_dir)
+        (run_dir / "raw_submission.csv").write_bytes(path.read_bytes())
+        receipt["completed_control_reused"] = recovered
+        receipt["control_predicted_in_this_run"] = False
+        print("RESUMING COMPLETED CONTROL EXPORT; no repeated E029 inference", flush=True)
+    else:
+        for i in (4, 5):
+            print(f"EXECUTING FROZEN REFERENCE CELL {i}", flush=True)
+            exec(compile(sources[i], f"reference:cell-{i}", "exec"), namespace)
+        predictor = verify_predictor(run_dir / "tracking_repo/scripts/predict_unet_transformer.py", run_dir)
+        (run_dir / "submission.csv").rename(run_dir / "raw_submission.csv")
+        receipt["control_predicted_in_this_run"] = True
     bounds = reference.normalize_export_boundary(run_dir / "raw_submission.csv", run_dir / "control.csv",
                                                   input_root / "test", names)
     audit = reference.validate_submission(run_dir / "control.csv", input_root / "test", names)
@@ -131,7 +181,7 @@ def control(bundle: Path, manifest: dict):
     expected = EXPECTED[manifest["mode"]]
     parity = {"actual_csv_sha256": audit["submission_sha256"], "expected_csv_sha256": expected["csv_sha256"],
               "byte_parity": audit["submission_sha256"] == expected["csv_sha256"],
-              "patched_predictor_sha256": predictor, "rows": audit["rows"]}
+              "predictor_source_audit": predictor, "rows": audit["rows"]}
     save(WORK / "control_parity.json", parity)
     receipt["effective_environment"] = {k: v for k, v in os.environ.items() if k.startswith("BIOHUB_")}
     receipt["control_prediction_complete"] = True
