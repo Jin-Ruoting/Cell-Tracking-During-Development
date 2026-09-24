@@ -98,7 +98,7 @@ def completed_smoke_files(directory: Path) -> tuple[dict[str, str], dict]:
     predictor_path = directory / "control/tracking_repo/scripts/predict_unet_transformer.py"
     predictor_audit = cloud.verify_predictor(predictor_path, cloud.WORK / "control")
     csv_path = directory / "control/submission.csv"
-    files = {"completed-control/raw_submission.csv": csv_path.read_text(),
+    files = {"completed-control/raw_submission.csv": csv_path.read_bytes().decode("utf-8"),
              "completed-control/predict_unet_transformer.py": predictor_path.read_text(),
              "completed-control/source_run_manifest.json": json.dumps(original, indent=2) + "\n"}
     receipt = {"source_git_commit": original["git_commit"], "source_csv_sha256": sha256(csv_path.read_bytes()),
@@ -145,12 +145,14 @@ def run_logged(label, command):
 run_logged("semantic-tests", [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_point_gap_bridge.py", "-v"])
 runner = [sys.executable, str(bundle / "kaggle/run_kaggle_development.py"), "--bundle", str(bundle), "--phase"]
 run_logged("control", runner + ["control"])
-if not json.loads((work / "control_parity.json").read_text())["byte_parity"]:
+if json.loads((bundle / "bundle_manifest.json").read_text()).get("diagnostic_only"):
     run_logged("diagnose-control", runner + ["diagnose-control"])
-    (work / "run_summary.md").write_text("# Control migration mismatch\\n\\nE029 CSV did not reproduce its historical checksum. Diagnostic score retained; E038 not run.\\n")
-    raise RuntimeError("E029 migration parity failed; no candidate or parameter adjustment")
-for phase in ("peaks", "bridges", "score"):
-    run_logged(phase, runner + [phase])
+else:
+    if not json.loads((work / "control_parity.json").read_text())["byte_parity"]:
+        run_logged("diagnose-control", runner + ["diagnose-control"])
+        raise RuntimeError("E029 migration parity failed; no candidate or parameter adjustment")
+    for phase in ("peaks", "bridges", "score"):
+        run_logged(phase, runner + [phase])
 print((work / "run_summary.md").read_text())
 '''
 
@@ -177,6 +179,8 @@ def build(args):
     files.update(scoring_files(args.scorer_archive))
     files["reference.ipynb"] = args.reference_notebook.read_text()
     completed_control = None
+    if args.diagnostic_only and not args.completed_control_dir:
+        raise ValueError("CPU diagnostic requires completed control outputs")
     if args.completed_control_dir:
         if args.mode != "smoke":
             raise ValueError("Completed-control recovery is limited to the frozen smoke pair")
@@ -185,18 +189,21 @@ def build(args):
     manifest = {"git_commit": revision, "mode": args.mode, "protocol_sha256": protocol,
                 "reference_sha256": reference.REFERENCE_SHA256, "scorer_archive_sha256": SCORER_ARCHIVE_SHA256,
                 "completed_control": completed_control,
+                "diagnostic_only": args.diagnostic_only,
                 "files": {name: sha256(text.encode()) for name, text in files.items()}}
     files["bundle_manifest.json"] = json.dumps(manifest, indent=2) + "\n"
     metadata = {"id": f"{args.owner}/biohub-e038-development-frozen-{args.mode}",
                 "title": "Biohub E038 Development | Frozen " + args.mode.title(),
                 "code_file": "e038_development.ipynb", "language": "python", "kernel_type": "notebook",
-                "is_private": True, "enable_gpu": True, "enable_tpu": False, "enable_internet": False,
+                "is_private": True, "enable_gpu": not args.diagnostic_only, "enable_tpu": False, "enable_internet": False,
                 "dataset_sources": ["pilkwang/biohub-tracking-support-pack-50ep-v1",
                                     "pilkwang/biohub-temporal-unet3d-seed314159-v1",
                                     "pilkwang/biohub-deepcenter-unet3d-center-prior-v1",
                                     "hengck23/hengck23-cell-point-detector-demo"],
                 "competition_sources": ["biohub-cell-tracking-during-development"], "kernel_sources": [],
                 "model_sources": [], "docker_image": DOCKER, "machine_shape": "NvidiaTeslaT4"}
+    if args.diagnostic_only:
+        metadata.pop("machine_shape")
     intro = ("# E038 frozen development comparison\n\nPrivate compute fallback; training movies only. "
              "No submission is made. A smoke result is a technical check, not selection evidence.\n\n"
              "References: [Geometric Fusion](https://www.kaggle.com/code/amanatar/biohub-geometric-fusion), "
@@ -228,6 +235,8 @@ def main():
     parser.add_argument("--smoke-receipt", type=Path)
     parser.add_argument("--completed-control-dir", type=Path,
                         help="Downloaded completed smoke outputs, with original manifest, raw CSV and predictor")
+    parser.add_argument("--diagnostic-only", action="store_true",
+                        help="CPU-only official scoring of recovered control; never run candidate inference")
     parser.add_argument("--output-dir", type=Path, required=True)
     build(parser.parse_args())
 

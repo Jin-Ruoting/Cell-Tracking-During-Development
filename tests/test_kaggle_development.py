@@ -15,6 +15,16 @@ import run_kaggle_development as cloud
 
 
 class KaggleDevelopmentTests(unittest.TestCase):
+    def test_recovery_prepares_dependencies_without_copying_models(self):
+        order = []
+        source = "ARTIFACTS = 'support'\nensure_dependencies(ARTIFACTS)\ncopy_models()"
+        namespace = {"ensure_dependencies": lambda a: order.append(a),
+                     "copy_models": lambda: order.append("copied")}
+        exec(cloud.dependency_setup_source(source), namespace)
+        self.assertEqual(order, ["support"])
+        with self.assertRaisesRegex(ValueError, "anchor"):
+            cloud.dependency_setup_source("copy_models()")
+
     def test_predictor_guard_allows_only_the_two_log_path_relocations(self):
         canonical = 'a = Path("/kaggle/working")\nb = Path("/kaggle/working")\nthreshold = 0.965\n'
         digest = hashlib.sha256(canonical.encode()).hexdigest()

@@ -106,6 +106,17 @@ def guard_before_inference(source: str) -> str:
     return ast.unparse(ast.fix_missing_locations(tree))
 
 
+def dependency_setup_source(source: str) -> str:
+    """Run pinned offline package setup before copying any model artifacts."""
+    tree = ast.parse(source)
+    for i, node in enumerate(tree.body):
+        if (isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name) and node.value.func.id == "ensure_dependencies"):
+            tree.body = tree.body[:i + 1]
+            return ast.unparse(ast.fix_missing_locations(tree))
+    raise ValueError("Reference dependency setup anchor changed")
+
+
 def control(bundle: Path, manifest: dict):
     sources = reference.read_reference(bundle / "reference.ipynb")
     data = mounted("", "biohub-cell-tracking-during-development", competition=True)
@@ -134,11 +145,13 @@ def control(bundle: Path, manifest: dict):
     # already-provisioned server. No inference or policy statement is replaced.
     sources = relocated_sources(sources, input_root, run_dir, support)
     sources[4] = guard_before_inference(sources[4])
+    recovered = manifest.get("completed_control")
     namespace["_verify_cloud_predictor"] = lambda: save(
         run_dir / "predictor_source_audit.json",
         verify_predictor(run_dir / "tracking_repo/scripts/predict_unet_transformer.py", run_dir))
     for i in (2, 3):
-        exec(compile(sources[i], f"reference:cell-{i}", "exec"), namespace)
+        source = dependency_setup_source(sources[i]) if i == 3 and recovered else sources[i]
+        exec(compile(source, f"reference:cell-{i}", "exec"), namespace)
     selection = corpus.reconstruct(data / "train", manifest["mode"])
     names = corpus.validate_manifest(selection, manifest["mode"])
     save(WORK / "cohort.json", selection)
@@ -154,7 +167,6 @@ def control(bundle: Path, manifest: dict):
                "selection_reads_ground_truth": True, "predictions_read_ground_truth": False,
                "evidence": "development only; checkpoint training overlap is unresolved"}
     save(WORK / "run_manifest.json", receipt)
-    recovered = manifest.get("completed_control")
     if recovered:
         if manifest["mode"] != "smoke" or recovered["datasets"] != names:
             raise ValueError("Completed control is not the frozen smoke pair")
@@ -183,6 +195,10 @@ def control(bundle: Path, manifest: dict):
               "byte_parity": audit["submission_sha256"] == expected["csv_sha256"],
               "predictor_source_audit": predictor, "rows": audit["rows"]}
     save(WORK / "control_parity.json", parity)
+    if recovered and parity["byte_parity"] and not manifest.get("diagnostic_only"):
+        # Only a passing control needs the support repository for subsequent
+        # v5 prediction. A failed control needs scoring dependencies alone.
+        exec(compile(sources[3], "reference:cell-3-recovery", "exec"), namespace)
     receipt["effective_environment"] = {k: v for k, v in os.environ.items() if k.startswith("BIOHUB_")}
     receipt["control_prediction_complete"] = True
     save(WORK / "run_manifest.json", receipt)
@@ -262,8 +278,15 @@ def score(bundle: Path, manifest: dict, diagnose_only=False):
         rows = {n: reference.stability.score_one(official, n, control_dir / f"{n}.geff", data / "train")[0]
                 for n in names}
         result = reference.stability.official_summary(official, rows, names)
-        save(WORK / "control_diagnostic.json", {"observed": result, "expected": EXPECTED[manifest["mode"]],
-                                              "promotion_allowed": False, "candidate_run": False})
+        diagnostic = {"observed": result, "expected": EXPECTED[manifest["mode"]],
+                      "control_parity": json.loads((WORK / "control_parity.json").read_text()),
+                      "promotion_allowed": False, "candidate_run": False,
+                      "score_delta_from_historical_control": result["score"] - EXPECTED[manifest["mode"]]["score"]}
+        save(WORK / "control_diagnostic.json", diagnostic)
+        (WORK / "run_summary.md").write_text("# E029 control portability diagnostic\n\n" +
+            "Completed control reused. No E038 candidate or promotion.\n\n```json\n" +
+            json.dumps(diagnostic, indent=2) + "\n```\n")
+        print(json.dumps(diagnostic, indent=2), flush=True)
         return
     args = SimpleNamespace(runtime_dir=bundle / "kaggle", scorer_dir=scorer, control_dir=control_dir,
                            data_dir=data, output_dir=WORK / "candidate", minimum_pooled_delta=0.001,

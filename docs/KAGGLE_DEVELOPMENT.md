@@ -48,6 +48,9 @@ predictor and original run/cohort receipts. This limited recovery verifies
 provenance, predictor identity and file hashes, then repeats boundary/topology,
 historical CSV and official-score checks on Kaggle. It does not rerun E029
 inference or relax any E038 advancement gate. Reuse is explicit in the receipt.
+Add `--diagnostic-only` to score this completed control on CPU without running
+v5 or E038. This route prepares only scoring dependencies and avoids repeated
+model copying. A completed diagnostic is not a passed migration check.
 
 External inputs:
 
