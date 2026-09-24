@@ -78,7 +78,7 @@ subprocess.run([sys.executable, str(root / "check_v12_checkpoint.py"), "run", "-
                       "enable_gpu": False, "metadata_only": metadata_only}, indent=2))
 
 
-def load_checkpoint(root: Path, report: dict):
+def load_checkpoint(root: Path, report: dict, *, cpu_only: bool = True):
     """Load only the pinned, reviewed checkpoint using restricted deserialization."""
     weight = root / "00000008.pth"
     if weight.stat().st_size != 43_076_221:
@@ -90,7 +90,8 @@ def load_checkpoint(root: Path, report: dict):
     with zipfile.ZipFile(weight) as archive:
         if archive.testzip() is not None:
             raise ValueError("Checkpoint archive CRC failed")
-    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    if cpu_only:
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
     import torch
     torch.set_num_threads(4)
     torch.set_num_interop_threads(1)
