@@ -154,7 +154,7 @@ def build(args):
                 "reference_sha256": reference.REFERENCE_SHA256, "scorer_archive_sha256": SCORER_ARCHIVE_SHA256,
                 "files": {name: sha256(text.encode()) for name, text in files.items()}}
     files["bundle_manifest.json"] = json.dumps(manifest, indent=2) + "\n"
-    metadata = {"id": f"{args.owner}/biohub-e038-development-{args.mode}",
+    metadata = {"id": f"{args.owner}/biohub-e038-development-frozen-{args.mode}",
                 "title": "Biohub E038 Development | Frozen " + args.mode.title(),
                 "code_file": "e038_development.ipynb", "language": "python", "kernel_type": "notebook",
                 "is_private": True, "enable_gpu": True, "enable_tpu": False, "enable_internet": False,
