@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package pinned public inference and two declared final-day config transfers.
+"""Package pinned public inference and declared final-day config transfers.
 
 The public Notebook is downloaded separately and is never committed here.
 This builder only reads source; it performs no model inference or API mutation.
@@ -23,6 +23,8 @@ PROFILES = {
     "E045": {},
     "E046": {"BIOHUB_ILP_DIVISION_WEIGHT": "0.4"},
     "E047": {"BIOHUB_ILP_DIVISION_WEIGHT": "0.4", "BIOHUB_READMIT_MIN_SCORE": "0.94"},
+    "E048": {"BIOHUB_READMIT_MIN_SCORE": "0.94"},
+    "E049": {"BIOHUB_DET_THRESHOLD": "0.96"},
 }
 DATASETS = {
     "pilkwang/biohub-deepcenter-unet3d-center-prior-v1",
@@ -146,11 +148,15 @@ def build(args):
         cells.append({"cell_type": "code", "metadata": {}, "source": text,
                       "outputs": [], "execution_count": None})
     code(sources[0])
+    # Check the frozen parent first, then the explicitly declared profile.
+    # No downstream module reads configuration until both checks have passed.
+    code(sources[1])
     code(f"os.environ.update({PROFILES[args.experiment]!r})\n"
          "assert os.environ['BIOHUB_VALIDATOR_ENABLE'] == '0'\n"
          f"assert os.environ['BIOHUB_ILP_DIVISION_WEIGHT'] == {PROFILES[args.experiment].get('BIOHUB_ILP_DIVISION_WEIGHT', '1.2')!r}\n"
-         f"assert os.environ['BIOHUB_READMIT_MIN_SCORE'] == {PROFILES[args.experiment].get('BIOHUB_READMIT_MIN_SCORE', '0.965')!r}\n")
-    for source in sources[1:4]:
+         f"assert os.environ['BIOHUB_READMIT_MIN_SCORE'] == {PROFILES[args.experiment].get('BIOHUB_READMIT_MIN_SCORE', '0.965')!r}\n"
+         f"assert os.environ['BIOHUB_DET_THRESHOLD'] == {PROFILES[args.experiment].get('BIOHUB_DET_THRESHOLD', '0.965')!r}\n")
+    for source in sources[2:4]:
         code(source)
     code("import hashlib\nfrom pathlib import Path\n"
          "_head_roots = [Path('/kaggle/input/datasets/anvithpothula/biohub-v1284-head-s075/v1284_head.pt'),\n"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit downloaded E045-E047 example outputs without running a model."""
+"""Audit downloaded E045-E049 example outputs without running a model."""
 from __future__ import annotations
 
 import argparse
@@ -36,6 +36,7 @@ def check_receipt(receipt, experiment, commit, sources):
     settings = {
         "BIOHUB_VALIDATOR_ENABLE": "0", "V1284_MODE": "candidate",
         "BIOHUB_ILP_DIVISION_WEIGHT": "1.2", "BIOHUB_READMIT_MIN_SCORE": "0.965",
+        "BIOHUB_DET_THRESHOLD": "0.965",
         "BIOHUB_DUAL_SEED_MIN_CANDIDATE_RETENTION": "0.90",
         **builder.PROFILES[experiment],
     }
