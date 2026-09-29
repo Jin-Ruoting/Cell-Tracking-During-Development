@@ -153,7 +153,9 @@ def build(args):
     for source in sources[1:4]:
         code(source)
     code("import hashlib\nfrom pathlib import Path\n"
-         "_heads = sorted(Path('/kaggle/input').rglob('biohub-v1284-head-s075/v1284_head.pt'))\n"
+         "_head_roots = [Path('/kaggle/input/datasets/anvithpothula/biohub-v1284-head-s075/v1284_head.pt'),\n"
+         "               Path('/kaggle/input/biohub-v1284-head-s075/v1284_head.pt')]\n"
+         "_heads = sorted({p.resolve() for p in _head_roots if p.is_file()})\n"
          "if len(_heads) != 1:\n    raise ValueError('Expected one public coordinate head')\n"
          f"if hashlib.sha256(_heads[0].read_bytes()).hexdigest() != {HEAD_SHA256!r}:\n"
          "    raise ValueError('Public coordinate head checksum mismatch')\n")
@@ -161,7 +163,7 @@ def build(args):
         code(source)
     code(audit_source(args.experiment, proof))
     metadata.pop("id_no", None)
-    metadata.update(id=args.kernel, title=f"Biohub {args.experiment} | Public 953 Transfer",
+    metadata.update(id=args.kernel, title=args.kernel.split("/")[1].replace("-", " "),
                     code_file="submission.ipynb", is_private=True, enable_internet=False)
     notebook = {"nbformat": 4, "nbformat_minor": 4, "cells": cells,
                 "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}}}
