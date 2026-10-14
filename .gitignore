@@ -1,35 +1,22 @@
-# Local Codex and agent state
-AGENTS.md
-AGENTS.override.md
-agents.md
-agents.override.md
-.agents/
-.codex/
-
-# Python
+# Python and notebook caches
 __pycache__/
 *.py[cod]
+.ipynb_checkpoints/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .venv/
 venv/
 
-# Notebook state
-.ipynb_checkpoints/
-
-# Local operational records
-docs/EXPERIMENT_LOG.md
-docs/REPOSITORY_UPDATES.md
-docs/WORKFLOW.md
-
-# Competition data and generated artifacts
-Dataset/
-data/
-artifacts/
-outputs/
-submissions/
-logs/
+# Competition data, model weights, and generated predictions
+/data/*
+!/data/README.md
+/Dataset/
+/models/
+/artifacts/
+/outputs/
+/submissions/
+/logs/
 *.log
 *.csv
 *.parquet
@@ -53,7 +40,7 @@ logs/
 *.tgz
 *.7z
 
-# Local environment and operating-system files
+# Credentials and local configuration
 .env
 .env.*
 .kaggle/
@@ -61,3 +48,9 @@ kaggle.json
 *.pem
 *.key
 .DS_Store
+AGENTS.md
+AGENTS.override.md
+agents.md
+agents.override.md
+.agents/
+.codex/

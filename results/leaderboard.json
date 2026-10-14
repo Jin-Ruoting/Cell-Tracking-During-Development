@@ -1,0 +1,31 @@
+{
+  "competition": "Biohub - Cell Tracking During Development",
+  "competition_url": "https://www.kaggle.com/competitions/biohub-cell-tracking-during-development",
+  "leaderboard_url": "https://www.kaggle.com/competitions/biohub-cell-tracking-during-development/leaderboard",
+  "team": {
+    "name": "Ruoting",
+    "id": 16588865
+  },
+  "final_result": {
+    "experiment": "E048",
+    "submission_id": 56673115,
+    "public_score": 0.95508,
+    "private_score": 0.91863,
+    "rank": 509,
+    "ranked_teams": 3947,
+    "top_percent": 12.9,
+    "kernel_version": 1,
+    "script_version_id": 353850277,
+    "notebook": "notebooks/e048_inference.ipynb",
+    "notebook_sha256": "807404d586bf101457ef88d0f77cff42777959ef28e3a5ec8f542cb227e97918",
+    "runtime_configuration": "configs/kernel-metadata.json"
+  },
+  "best_public_result": {
+    "experiment": "E047",
+    "submission_id": 56673114,
+    "public_score": 0.95605,
+    "private_score": 0.91792
+  },
+  "verified_at_utc": "2026-10-14T08:58:02.919444+00:00",
+  "verification_basis": "Authenticated Kaggle competition metadata, private leaderboard and account submission records"
+}
